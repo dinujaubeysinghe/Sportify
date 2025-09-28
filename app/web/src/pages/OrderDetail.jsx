@@ -140,7 +140,7 @@ const OrderDetail = () => {
                   <div className="flex items-center space-x-2">
                     {getStatusIcon(order.shipmentStatus)}
                     <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(order.shipmentStatus)}`}>
-                      {order.orderStatus.replace('_', ' ').toUpperCase()}
+                      {order.paymentStatus.replace('_', ' ').toUpperCase()}
                     </span>
                   </div>
                 </div>

@@ -38,92 +38,9 @@ const StaffDashboard = () => {
           todayOrders: 23,
           weeklyOrders: 156
         },
-        recentOrders: [
-          {
-            id: 'ORD-001',
-            customer: 'John Smith',
-            email: 'john@example.com',
-            phone: '+1 (555) 123-4567',
-            total: 240,
-            status: 'pending',
-            priority: 'high',
-            date: '2024-01-15',
-            items: 3
-          },
-          {
-            id: 'ORD-002',
-            customer: 'Sarah Johnson',
-            email: 'sarah@example.com',
-            phone: '+1 (555) 234-5678',
-            total: 180,
-            status: 'processing',
-            priority: 'medium',
-            date: '2024-01-15',
-            items: 2
-          },
-          {
-            id: 'ORD-003',
-            customer: 'Mike Wilson',
-            email: 'mike@example.com',
-            phone: '+1 (555) 345-6789',
-            total: 360,
-            status: 'shipped',
-            priority: 'low',
-            date: '2024-01-14',
-            items: 1
-          }
-        ],
-        supportTickets: [
-          {
-            id: 'TICKET-001',
-            customer: 'Alice Brown',
-            subject: 'Order not delivered',
-            priority: 'high',
-            status: 'open',
-            date: '2024-01-15',
-            category: 'delivery'
-          },
-          {
-            id: 'TICKET-002',
-            customer: 'Bob Davis',
-            subject: 'Product quality issue',
-            priority: 'medium',
-            status: 'in-progress',
-            date: '2024-01-14',
-            category: 'product'
-          },
-          {
-            id: 'TICKET-003',
-            customer: 'Carol White',
-            subject: 'Return request',
-            priority: 'low',
-            status: 'resolved',
-            date: '2024-01-13',
-            category: 'returns'
-          }
-        ],
-        recentCustomers: [
-          {
-            id: 'CUST-001',
-            name: 'John Smith',
-            email: 'john@example.com',
-            phone: '+1 (555) 123-4567',
-            orders: 5,
-            totalSpent: 1200,
-            lastOrder: '2024-01-15',
-            status: 'active'
-          },
-          {
-            id: 'CUST-002',
-            name: 'Sarah Johnson',
-            email: 'sarah@example.com',
-            phone: '+1 (555) 234-5678',
-            orders: 3,
-            totalSpent: 850,
-            lastOrder: '2024-01-14',
-            status: 'active'
-          }
-        ]
+        recentOrders: [],
+        supportTickets: [],
+        recentCustomers: []
       });
       setIsLoading(false);
     };

@@ -35,37 +35,9 @@ const InventoryAnalytics = () => {
   );
 
   // Sample data for charts (replace with real data from API)
-  const stockLevelData = [
-    { name: 'In Stock', value: 45, color: '#10B981' },
-    { name: 'Low Stock', value: 12, color: '#F59E0B' },
-    { name: 'Out of Stock', value: 3, color: '#EF4444' }
-  ];
+  const stockLevelData = [];
 
-  const categoryStockData = [
-    { category: 'Football', stock: 120, value: 15000 },
-    { category: 'Basketball', stock: 85, value: 12000 },
-    { category: 'Soccer', stock: 95, value: 11000 },
-    { category: 'Tennis', stock: 60, value: 8000 },
-    { category: 'Golf', stock: 40, value: 12000 },
-    { category: 'Fitness', stock: 75, value: 9000 }
-  ];
-
-  const stockMovementData = [
-    { month: 'Jan', stockIn: 45, stockOut: 32 },
-    { month: 'Feb', stockIn: 52, stockOut: 38 },
-    { month: 'Mar', stockIn: 48, stockOut: 42 },
-    { month: 'Apr', stockIn: 61, stockOut: 35 },
-    { month: 'May', stockIn: 55, stockOut: 48 },
-    { month: 'Jun', stockIn: 67, stockOut: 52 }
-  ];
-
-  const topProductsData = [
-    { name: 'Nike Air Max', stock: 25, value: 2500 },
-    { name: 'Adidas Football', stock: 18, value: 1800 },
-    { name: 'Wilson Tennis Racket', stock: 15, value: 1500 },
-    { name: 'Under Armour Jersey', stock: 22, value: 2200 },
-    { name: 'Puma Running Shoes', stock: 20, value: 2000 }
-  ];
+  const categoryStockData = [];
 
   if (isLoading) {
     return (

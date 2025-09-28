@@ -80,8 +80,13 @@ const Orders = () => {
                       <p className="text-lg font-semibold text-gray-900">
                         {formatPrice(order.total)}
                       </p>
+
+                      {console.log(order)}
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.orderStatus)}`}>
-                        {order.orderStatus.replace('_', ' ').toUpperCase()}
+                        {order.paymentStatus
+                          ? order.paymentStatus.replace('_', ' ').toUpperCase()
+                          : 'UNKNOWN'}
+
                       </span>
                     </div>
                   </div>

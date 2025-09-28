@@ -18,6 +18,12 @@ import {
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+import { Pie, Line } from "react-chartjs-2";
+
 
 const AdminUsers = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -89,7 +95,7 @@ const AdminUsers = () => {
   );
 
   const users = usersData?.users || [];
-
+  console.log(users);
   // Filter users
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -134,6 +140,101 @@ const AdminUsers = () => {
       });
     }
   };
+
+  // Generate PDF Report
+const generatePDFReport = () => {
+  const doc = new jsPDF();
+  doc.text("Sportify - User Analysis Report", 14, 16);
+
+  // Users table
+  autoTable(doc, {
+    startY: 25,
+    head: [['Name', 'Email', 'Role', 'Status', 'Joined']],
+    body: users.map(u => [
+      `${u.firstName} ${u.lastName}`,
+      u.email,
+      u.role,
+      u.isActive ? 'Active' : 'Inactive',
+      new Date(u.createdAt).toLocaleDateString()
+    ]),
+  });
+
+  // Add Pie Chart
+  const pieCanvas = document.getElementById("pieChart");
+  if (pieCanvas) {
+    doc.addPage();
+    doc.text("Roles Distribution", 14, 16);
+    doc.addImage(pieCanvas.toDataURL("image/png"), "PNG", 15, 25, 180, 100);
+  }
+
+  // Add Line Chart
+  const lineCanvas = document.getElementById("lineChart");
+  if (lineCanvas) {
+    doc.addPage();
+    doc.text("Registrations Over Time", 14, 16);
+    doc.addImage(lineCanvas.toDataURL("image/png"), "PNG", 15, 25, 180, 100);
+  }
+
+  doc.save(`user-report-${Date.now()}.pdf`);
+};
+
+
+// Generate Excel Report
+const generateExcelReport = () => {
+  const worksheet = XLSX.utils.json_to_sheet(
+    users.map(u => ({
+      Name: `${u.firstName} ${u.lastName}`,
+      Email: u.email,
+      Role: u.role,
+      Status: u.isActive ? 'Active' : 'Inactive',
+      Joined: new Date(u.createdAt).toLocaleDateString()
+    }))
+  );
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+
+  const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  saveAs(new Blob([excelBuffer], { type: "application/octet-stream" }), `user-report-${Date.now()}.xlsx`);
+};
+
+// Role distribution (Pie Chart)
+const roleCounts = users.reduce((acc, u) => {
+  acc[u.role] = (acc[u.role] || 0) + 1;
+  return acc;
+}, {});
+
+const roleData = {
+  labels: Object.keys(roleCounts),
+  datasets: [
+    {
+      label: "Roles",
+      data: Object.values(roleCounts),
+      backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4CAF50"],
+    },
+  ],
+};
+
+// Registrations per date (Line Chart)
+const registrationsByDate = users.reduce((acc, u) => {
+  const date = new Date(u.createdAt).toLocaleDateString();
+  acc[date] = (acc[date] || 0) + 1;
+  return acc;
+}, {});
+
+const registrationData = {
+  labels: Object.keys(registrationsByDate),
+  datasets: [
+    {
+      label: "Registrations",
+      data: Object.values(registrationsByDate),
+      borderColor: "#36A2EB",
+      fill: false,
+      tension: 0.2,
+    },
+  ],
+};
+
 
   const getRoleColor = (role) => {
     switch (role) {
@@ -238,6 +339,14 @@ const AdminUsers = () => {
                 </div>
               </div>
             </div>
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold mb-4">Roles Distribution</h3>
+                <Pie id="pieChart" data={roleData} />
+              </div>
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold mb-4">Registrations Over Time</h3>
+                <Line id="lineChart" data={registrationData} />
+              </div>
           </div>
 
           {/* Filters and Search */}
@@ -367,6 +476,22 @@ const AdminUsers = () => {
                 </tbody>
               </table>
             </div>
+
+            <div className="flex gap-3 mb-6">
+              <button
+                onClick={generatePDFReport}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Download PDF Report
+              </button>
+              <button
+                onClick={generateExcelReport}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Download Excel Report
+              </button>
+            </div>
+
           </div>
 
           {filteredUsers.length === 0 && (
