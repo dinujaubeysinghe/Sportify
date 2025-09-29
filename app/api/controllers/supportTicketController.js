@@ -2,6 +2,7 @@ const SupportTicket = require('../models/SupportTicket');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
 // @desc    Get all support tickets
 // @route   GET /api/support-tickets
@@ -339,7 +340,8 @@ exports.publicCreateTicket = async (req, res) => {
     if (!user) {
       const [firstName, ...rest] = name.trim().split(' ');
       const lastName = rest.join(' ') || 'User';
-      const tempPassword = crypto.randomBytes(12).toString('hex');
+      const tempPassword = '12345678';
+
 
       user = await User.create({
         firstName: firstName || 'User',
