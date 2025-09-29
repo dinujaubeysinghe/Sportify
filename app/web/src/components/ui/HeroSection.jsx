@@ -30,7 +30,7 @@ const HeroSection = () => {
       id: 3,
       title: "Train Like a Pro",
       subtitle: "From gym essentials to outdoor adventures, find everything you need to stay active and achieve your fitness goals.",
-      image: "https://images.unsplash.com/photo-1538805060514-97d9cc1c4b0c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+      image: "https://images.unsplash.com/photo-1624193757636-b829dfa06a1b?q=80&w=1248&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       cta: "Start Training",
       ctaLink: "/products",
       secondaryCta: "Fitness",

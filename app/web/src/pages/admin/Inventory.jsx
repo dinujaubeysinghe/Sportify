@@ -195,7 +195,7 @@ const AdminInventory = () => {
                 <p className="text-gray-600 mt-2">Track stock levels and manage inventory</p>
               </div>
               <div className="flex space-x-3">
-                <button 
+                {/* <button 
                   onClick={() => setShowBulkUpdateModal(true)}
                   className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
                 >
@@ -205,7 +205,7 @@ const AdminInventory = () => {
                 <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
                   <Download className="h-4 w-4 mr-2" />
                   Export Report
-                </button>
+                </button> */}
                 <button 
                   onClick={() => queryClient.invalidateQueries()}
                   className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center"

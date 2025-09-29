@@ -58,6 +58,7 @@ const SupplierProducts = () => {
         }
       });
       const res = await axios.post('/products', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      console.log('Product :',res.data);
 
       const productId = res.data.product._id;
 

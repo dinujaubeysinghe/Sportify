@@ -132,8 +132,12 @@ const InventoryAnalysisPage = () => {
 
   return (
     <div className="report-container">
+
       <div ref={reportRef} className="report-content">
         <header className="report-header">
+          <div className='flex justify-center'>
+            <img src='/SportifyLogo.png' alt='logo' className='w-72'></img>
+          </div>
           <h1>Inventory Analysis Report</h1>
           <p>Generated on: {new Date().toLocaleDateString()}</p>
         </header>
@@ -182,6 +186,18 @@ const InventoryAnalysisPage = () => {
           <div className="chart-container-full">
             <Line data={movementLineData} />
           </div>
+        </section>
+
+
+        <section className='sign mt-16'>
+                <div className='flex justify-between'>
+                  <div>
+                    <p><strong>Date :</strong> ................................</p>
+                  </div>
+                  <div>
+                    <p><strong>Sign :</strong> ................................</p>
+                  </div>
+                </div>
         </section>
       </div>
 
