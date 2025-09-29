@@ -2,7 +2,6 @@ const SupportTicket = require('../models/SupportTicket');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const crypto = require('crypto');
-const bcrypt = require('bcrypt');
 
 // @desc    Get all support tickets
 // @route   GET /api/support-tickets
