@@ -275,9 +275,11 @@ exports.addStock = async (req, res) => {
     await inventory.addStock(qty, reason, req.user._id, { cost, notes });
 
     // Update product stock
-    product.stock = Number(product.stock) + qty;
-    await product.save();
-
+    if(reason != 'Adding New Product'){
+      product.stock = Number(product.stock) + qty;
+      await product.save();
+    }
+    
     await inventory.populate('product', 'name sku category brand price images');
     res.json({ success: true, message: 'Stock added', inventory });
   } catch (error) {

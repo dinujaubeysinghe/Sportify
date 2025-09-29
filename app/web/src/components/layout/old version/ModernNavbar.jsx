@@ -12,8 +12,8 @@ import {
   Settings,
   LogOut
 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useCart } from '../../contexts/CartContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useCart } from '../../../contexts/CartContext';
 
 const ModernNavbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,7 +49,6 @@ const ModernNavbar = () => {
   const navigation = [
     { name: 'Home', href: '/' },
     { name: 'Products', href: '/products' },
-    { name: 'Categories', href: '/categories' },
     { name: 'About', href: '/about' },
     { name: 'Contact', href: '/contact' }
   ];
@@ -58,7 +57,6 @@ const ModernNavbar = () => {
     { name: 'Profile', href: '/profile', icon: User },
     { name: 'Orders', href: '/orders', icon: ShoppingCart },
     { name: 'Wishlist', href: '/wishlist', icon: Heart },
-    { name: 'Settings', href: '/settings', icon: Settings }
   ];
 
   return (

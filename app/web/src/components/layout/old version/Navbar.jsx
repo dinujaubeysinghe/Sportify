@@ -13,9 +13,9 @@ import {
   BarChart3,
   Truck
 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useCart } from '../../contexts/CartContext';
-import StockAlertNotification from '../inventory/StockAlertNotification';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useCart } from '../../../contexts/CartContext';
+import StockAlertNotification from '../../inventory/StockAlertNotification';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

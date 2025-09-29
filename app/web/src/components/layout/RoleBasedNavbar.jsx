@@ -60,7 +60,6 @@ const RoleBasedNavbar = () => {
     const baseItems = [
       { name: 'Home', href: '/' },
       { name: 'Products', href: '/products' },
-      { name: 'Categories', href: '/categories' },
       { name: 'About', href: '/about' },
       { name: 'Contact', href: '/contact' }
     ];
@@ -109,7 +108,6 @@ const RoleBasedNavbar = () => {
       { name: 'Profile', href: '/profile', icon: User },
       { name: 'Orders', href: '/orders', icon: ShoppingCart },
       { name: 'Wishlist', href: '/wishlist', icon: Heart },
-      { name: 'Settings', href: '/settings', icon: Settings }
     ];
 
     // Add role-specific navigation
