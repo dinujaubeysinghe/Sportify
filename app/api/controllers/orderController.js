@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const Order = require('../models/Order');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
+const Inventory = require('../models/Inventory');
 const sendEmail = require('../utils/sendEmail');
 
 const {
@@ -158,9 +159,13 @@ exports.createOrder = async (req, res) => {
 
     const order = await Order.create(orderData);
 
-    // Decrement stock
+    // Decrement stock product
     for (const item of cart.items) {
       await Product.findByIdAndUpdate(item.product._id, { $inc: { stock: -item.quantity } });
+    }
+    // Decrement stock inventory
+    for (const item of cart.items) {
+      await Inventory.findOneAndUpdate({product:item.product._id}, { $inc: { currentStock: -item.quantity, availableStock: -item.quantity } });
     }
 
     // Clear cart

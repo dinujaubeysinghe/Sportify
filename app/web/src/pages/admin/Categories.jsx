@@ -222,6 +222,7 @@ const AdminCategories = () => {
                 <div key={category._id} className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center">
+
                       {category.image && (
                         <img
                           src={`${import.meta.env.VITE_SERVER_URL}/${category.image.url}`}
