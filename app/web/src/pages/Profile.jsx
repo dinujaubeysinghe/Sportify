@@ -50,6 +50,106 @@ const Profile = () => {
   });
 
   const [isUpdating, setIsUpdating] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+
+  // Validation functions
+  const validateField = (field, value) => {
+    const errors = {};
+    
+    switch (field) {
+      case 'firstName':
+        if (!value.trim()) {
+          errors.firstName = 'First name is required';
+        } else if (value.trim().length < 2) {
+          errors.firstName = 'First name must be at least 2 characters';
+        } else if (!/^[a-zA-Z\s]+$/.test(value.trim())) {
+          errors.firstName = 'First name can only contain letters and spaces';
+        }
+        break;
+        
+      case 'lastName':
+        if (!value.trim()) {
+          errors.lastName = 'Last name is required';
+        } else if (value.trim().length < 2) {
+          errors.lastName = 'Last name must be at least 2 characters';
+        } else if (!/^[a-zA-Z\s]+$/.test(value.trim())) {
+          errors.lastName = 'Last name can only contain letters and spaces';
+        }
+        break;
+        
+      case 'email':
+        if (!value.trim()) {
+          errors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
+          errors.email = 'Please enter a valid email address';
+        }
+        break;
+        
+      case 'phone':
+        if (value.trim()) {
+          // Support multiple phone number formats
+          const phoneRegex = /^(\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})$/;
+          const internationalRegex = /^\+[1-9]\d{1,14}$/;
+          const sriLankanRegex = /^(\+94|0)?[0-9]{9}$/;
+          
+          if (!phoneRegex.test(value.trim()) && !internationalRegex.test(value.trim()) && !sriLankanRegex.test(value.trim())) {
+            errors.phone = 'Please enter a valid phone number (e.g., +94-77-123-4567, 077-123-4567, or +1-555-123-4567)';
+          }
+        }
+        break;
+        
+      case 'zipCode':
+        if (value.trim()) {
+          // Support multiple ZIP/Postal code formats
+          const usZipRegex = /^\d{5}(-\d{4})?$/;
+          const generalPostalRegex = /^[A-Za-z0-9\s-]{3,10}$/;
+          
+          if (!usZipRegex.test(value.trim()) && !generalPostalRegex.test(value.trim())) {
+            errors.zipCode = 'Please enter a valid postal code (e.g., 12345, 12345-6789, or ABC 123)';
+          }
+        }
+        break;
+        
+      case 'city':
+        if (value.trim() && !/^[a-zA-Z\s]+$/.test(value.trim())) {
+          errors.city = 'City name can only contain letters and spaces';
+        }
+        break;
+        
+      case 'state':
+        if (value.trim() && !/^[a-zA-Z\s]+$/.test(value.trim())) {
+          errors.state = 'State name can only contain letters and spaces';
+        }
+        break;
+        
+      case 'address':
+        if (value.trim() && value.trim().length < 5) {
+          errors.address = 'Address must be at least 5 characters long';
+        }
+        break;
+        
+      case 'bio':
+        if (value.trim() && value.trim().length > 500) {
+          errors.bio = 'Bio must be 500 characters or less';
+        }
+        break;
+    }
+    
+    return errors;
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    
+    // Validate all fields
+    Object.keys(profileData).forEach(field => {
+      const fieldErrors = validateField(field, profileData[field]);
+      Object.assign(errors, fieldErrors);
+    });
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   useEffect(() => {
     if (user) {
@@ -58,11 +158,11 @@ const Profile = () => {
         lastName: user.lastName || '',
         email: user.email || '',
         phone: user.phone || '',
-        address: user.address || '',
-        city: user.city || '',
-        state: user.state || '',
-        zipCode: user.zipCode || '',
-        country: user.country || 'United States',
+        address: user.address?.street || '',
+        city: user.address?.city || '',
+        state: user.address?.state || '',
+        zipCode: user.address?.zipCode || '',
+        country: user.address?.country || 'United States',
         dateOfBirth: user.dateOfBirth || '',
         gender: user.gender || '',
         bio: user.bio || ''
@@ -72,6 +172,23 @@ const Profile = () => {
 
   const handleProfileChange = (field, value) => {
     setProfileData(prev => ({ ...prev, [field]: value }));
+    
+    // Clear error for this field when user starts typing
+    if (formErrors[field]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [field]: ''
+      }));
+    }
+    
+    // Real-time validation for certain fields
+    if (['firstName', 'lastName', 'email', 'phone', 'zipCode', 'city', 'state', 'address', 'bio'].includes(field)) {
+      const fieldErrors = validateField(field, value);
+      setFormErrors(prev => ({
+        ...prev,
+        ...fieldErrors
+      }));
+    }
   };
 
   const handlePasswordChange = (field, value) => {
@@ -79,6 +196,12 @@ const Profile = () => {
   };
 
   const handleSaveProfile = async () => {
+    // Validate form before saving
+    if (!validateForm()) {
+      toast.error('Please fix the errors before saving');
+      return;
+    }
+
     setIsUpdating(true);
     try {
       const result = await updateProfile(profileData);
@@ -121,13 +244,27 @@ const Profile = () => {
     }
   };
 
-  const tabs = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'security', label: 'Security', icon: Shield },
-    { id: 'orders', label: 'Orders', icon: ShoppingBag },
-    { id: 'wishlist', label: 'Wishlist', icon: Heart },
-    { id: 'settings', label: 'Settings', icon: Settings }
-  ];
+  // Define tabs based on user role
+  const getTabs = () => {
+    const baseTabs = [
+      { id: 'profile', label: 'Profile', icon: User },
+      { id: 'security', label: 'Security', icon: Shield },
+      { id: 'settings', label: 'Settings', icon: Settings }
+    ];
+
+    // Only add Orders and Wishlist for customers
+    if (user?.role === 'customer') {
+      return [
+        ...baseTabs,
+        { id: 'orders', label: 'Orders', icon: ShoppingBag },
+        { id: 'wishlist', label: 'Wishlist', icon: Heart }
+      ];
+    }
+
+    return baseTabs;
+  };
+
+  const tabs = getTabs();
 
   if (isLoading) {
     return (
@@ -246,8 +383,13 @@ const Profile = () => {
                           value={profileData.firstName}
                           onChange={(e) => handleProfileChange('firstName', e.target.value)}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 ${
+                            formErrors.firstName ? 'border-red-500' : 'border-gray-300'
+                          }`}
                         />
+                        {formErrors.firstName && (
+                          <p className="text-red-500 text-xs mt-1">{formErrors.firstName}</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -258,8 +400,13 @@ const Profile = () => {
                           value={profileData.lastName}
                           onChange={(e) => handleProfileChange('lastName', e.target.value)}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 ${
+                            formErrors.lastName ? 'border-red-500' : 'border-gray-300'
+                          }`}
                         />
+                        {formErrors.lastName && (
+                          <p className="text-red-500 text-xs mt-1">{formErrors.lastName}</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -270,8 +417,13 @@ const Profile = () => {
                           value={profileData.email}
                           onChange={(e) => handleProfileChange('email', e.target.value)}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 ${
+                            formErrors.email ? 'border-red-500' : 'border-gray-300'
+                          }`}
                         />
+                        {formErrors.email && (
+                          <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -282,8 +434,14 @@ const Profile = () => {
                           value={profileData.phone}
                           onChange={(e) => handleProfileChange('phone', e.target.value)}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          placeholder="+94-77-123-4567 or 077-123-4567"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 ${
+                            formErrors.phone ? 'border-red-500' : 'border-gray-300'
+                          }`}
                         />
+                        {formErrors.phone && (
+                          <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>
+                        )}
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -294,8 +452,13 @@ const Profile = () => {
                           value={profileData.address}
                           onChange={(e) => handleProfileChange('address', e.target.value)}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 ${
+                            formErrors.address ? 'border-red-500' : 'border-gray-300'
+                          }`}
                         />
+                        {formErrors.address && (
+                          <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -306,8 +469,13 @@ const Profile = () => {
                           value={profileData.city}
                           onChange={(e) => handleProfileChange('city', e.target.value)}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 ${
+                            formErrors.city ? 'border-red-500' : 'border-gray-300'
+                          }`}
                         />
+                        {formErrors.city && (
+                          <p className="text-red-500 text-xs mt-1">{formErrors.city}</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -318,8 +486,13 @@ const Profile = () => {
                           value={profileData.state}
                           onChange={(e) => handleProfileChange('state', e.target.value)}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 ${
+                            formErrors.state ? 'border-red-500' : 'border-gray-300'
+                          }`}
                         />
+                        {formErrors.state && (
+                          <p className="text-red-500 text-xs mt-1">{formErrors.state}</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -330,8 +503,14 @@ const Profile = () => {
                           value={profileData.zipCode}
                           onChange={(e) => handleProfileChange('zipCode', e.target.value)}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          placeholder="12345, 12345-6789, or ABC 123"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 ${
+                            formErrors.zipCode ? 'border-red-500' : 'border-gray-300'
+                          }`}
                         />
+                        {formErrors.zipCode && (
+                          <p className="text-red-500 text-xs mt-1">{formErrors.zipCode}</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -357,9 +536,17 @@ const Profile = () => {
                           onChange={(e) => handleProfileChange('bio', e.target.value)}
                           disabled={!isEditing}
                           rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
-                          placeholder="Tell us about yourself..."
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 ${
+                            formErrors.bio ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                          placeholder="Tell us about yourself... (max 500 characters)"
                         />
+                        {formErrors.bio && (
+                          <p className="text-red-500 text-xs mt-1">{formErrors.bio}</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          {profileData.bio.length}/500 characters
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -422,8 +609,8 @@ const Profile = () => {
                   </div>
                 )}
 
-                {/* Orders Tab */}
-                {activeTab === 'orders' && (
+                {/* Orders Tab - Only for customers */}
+                {activeTab === 'orders' && user?.role === 'customer' && (
                   <div className="p-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-6">Order History</h2>
                     
@@ -431,8 +618,8 @@ const Profile = () => {
                   </div>
                 )}
 
-                {/* Wishlist Tab */}
-                {activeTab === 'wishlist' && (
+                {/* Wishlist Tab - Only for customers */}
+                {activeTab === 'wishlist' && user?.role === 'customer' && (
                   <div className="p-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-6">Wishlist</h2>
                     

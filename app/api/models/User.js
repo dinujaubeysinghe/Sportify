@@ -43,6 +43,10 @@ const userSchema = new mongoose.Schema({
     zipCode: String,
     country: String
   },
+  bio: {
+    type: String,
+    maxlength: [500, 'Bio cannot exceed 500 characters']
+  },
   profileImage: {
     type: String,
     default: ''

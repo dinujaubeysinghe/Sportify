@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import jsPDF from 'jspdf';
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -276,10 +277,10 @@ const Customers = () => {
 
     if (searchTerm) {
       filtered = filtered.filter(customer =>
-        customer.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.phone.includes(searchTerm)
+        (customer.firstName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (customer.lastName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (customer.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (customer.phone || '').includes(searchTerm)
       );
     }
 
@@ -300,6 +301,7 @@ const Customers = () => {
   };
 
   const formatDate = (date) => {
+    if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-LK', {
       year: 'numeric',
       month: 'short',
@@ -335,10 +337,10 @@ const Customers = () => {
     ];
 
     const csvData = filteredCustomers.map(customer => [
-      `${customer.firstName} ${customer.lastName}`,
-      customer.email,
-      customer.phone,
-      customer.address,
+      `${customer.firstName || '' || ''} ${customer.lastName || '' || ''}`,
+      customer.email || '' || '',
+      customer.phone || '' || '',
+      customer.address || '',
       customer.isActive ? 'Active' : 'Inactive',
       customer.totalOrders || 0,
       formatPrice(customer.totalSpent || 0),
@@ -368,14 +370,14 @@ const Customers = () => {
     toast.success(`Exported ${filteredCustomers.length} customers successfully!`);
   };
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     if (filteredCustomers.length === 0) {
       toast.error('No customers to generate report for');
       return;
     }
 
-    let reportContent = '';
-    const reportDate = new Date().toLocaleDateString('en-LK');
+    try {
+      toast.loading('Generating PDF report...', { id: 'pdf-generation' });
     
     // Calculate summary statistics
     const totalCustomers = filteredCustomers.length;
@@ -385,119 +387,416 @@ const Customers = () => {
     const totalOrders = filteredCustomers.reduce((sum, c) => sum + (c.totalOrders || 0), 0);
     const revenueThisMonth = filteredCustomers.reduce((sum, c) => sum + (c.spendingThisMonth || 0), 0);
 
-    switch (reportType) {
-      case 'customer_summary':
-        reportContent = `
-CUSTOMER SUMMARY REPORT
-Generated on: ${reportDate}
-Report Period: Last ${reportPeriod} days
+      // Create new PDF document
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let yPosition = 20;
 
-SUMMARY STATISTICS:
-- Total Customers: ${totalCustomers}
-- Active Customers: ${activeCustomers}
-- Inactive Customers: ${totalCustomers - activeCustomers}
-- Total Revenue: ${formatPrice(totalRevenue)}
-- Average Order Value: ${formatPrice(averageOrderValue)}
-- Total Orders: ${totalOrders}
-- Revenue This Month: ${formatPrice(revenueThisMonth)}
+      // Helper function to add text with word wrap
+      const addText = (text, x, y, maxWidth = pageWidth - 40) => {
+        const lines = doc.splitTextToSize(text, maxWidth);
+        doc.text(lines, x, y);
+        return y + (lines.length * 7);
+      };
 
-TOP CUSTOMERS BY SPENDING:
-${filteredCustomers
+      // Helper function to add a new page if needed
+      const checkNewPage = (requiredSpace = 20) => {
+        if (yPosition + requiredSpace > pageHeight - 30) {
+          doc.addPage();
+          yPosition = 20;
+          return true;
+        }
+        return false;
+      };
+
+      // Load and add company logo
+      try {
+        // Convert logo to base64 for embedding
+        const logoResponse = await fetch('/SportifyLogo_1.png');
+        const logoBlob = await logoResponse.blob();
+        const logoBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(logoBlob);
+        });
+
+        // Add logo to PDF (60x30 size)
+        doc.addImage(logoBase64, 'PNG', pageWidth / 2 - 30, yPosition, 60, 30);
+        yPosition += 40;
+        
+        // Add tagline below logo
+        doc.setFontSize(12);
+        doc.setTextColor(102, 102, 102); // Gray color
+        doc.text('GEAR UP. GAME ON', pageWidth / 2, yPosition, { align: 'center' });
+        yPosition += 20;
+      } catch (logoError) {
+        console.warn('Could not load logo, using text fallback:', logoError);
+        // Fallback to text if logo fails to load
+        doc.setFontSize(24);
+        doc.setTextColor(37, 99, 235); // Blue color
+        doc.text('SPORTIFY', pageWidth / 2, yPosition, { align: 'center' });
+        yPosition += 10;
+        
+        doc.setFontSize(12);
+        doc.setTextColor(102, 102, 102); // Gray color
+        doc.text('GEAR UP. GAME ON', pageWidth / 2, yPosition, { align: 'center' });
+        yPosition += 20;
+      }
+
+      // Report title
+      doc.setFontSize(18);
+      doc.setTextColor(31, 41, 55); // Dark gray
+      const reportTitle = reportType === 'customer_summary' ? 'CUSTOMER SUMMARY REPORT' : 
+                         reportType === 'spending_analysis' ? 'CUSTOMER SPENDING ANALYSIS REPORT' : 
+                         'MONTHLY CUSTOMER ACTIVITY REPORT';
+      doc.text(reportTitle, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 20;
+
+      // Report info
+      doc.setFontSize(10);
+      doc.setTextColor(102, 102, 102);
+      const reportDate = new Date().toLocaleDateString('en-LK');
+      doc.text(`Generated on: ${reportDate}`, 20, yPosition);
+      doc.text(`Report Period: Last ${reportPeriod} days`, pageWidth - 20, yPosition, { align: 'right' });
+      yPosition += 15;
+      doc.text(`Total Customers: ${totalCustomers}`, 20, yPosition);
+      yPosition += 20;
+
+      // Generate different content based on report type
+      if (reportType === 'customer_summary') {
+        // Summary statistics
+        doc.setFontSize(14);
+        doc.setTextColor(31, 41, 55);
+        doc.text('SUMMARY STATISTICS', 20, yPosition);
+        yPosition += 15;
+
+        doc.setFontSize(10);
+        doc.setTextColor(55, 65, 81);
+        
+        const stats = [
+          `Total Customers: ${totalCustomers}`,
+          `Active Customers: ${activeCustomers}`,
+          `Inactive Customers: ${totalCustomers - activeCustomers}`,
+          `Total Revenue: ${formatPrice(totalRevenue)}`,
+          `Average Order Value: ${formatPrice(averageOrderValue)}`,
+          `Total Orders: ${totalOrders}`,
+          `Revenue This Month: ${formatPrice(revenueThisMonth)}`
+        ];
+
+        stats.forEach(stat => {
+          checkNewPage(10);
+          yPosition = addText(stat, 20, yPosition);
+          yPosition += 5;
+        });
+
+        yPosition += 10;
+
+        // Top customers section
+        checkNewPage(30);
+        doc.setFontSize(14);
+        doc.setTextColor(31, 41, 55);
+        doc.text('TOP CUSTOMERS BY SPENDING', 20, yPosition);
+        yPosition += 15;
+
+        doc.setFontSize(10);
+        doc.setTextColor(55, 65, 81);
+        
+        const topCustomers = filteredCustomers
   .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0))
-  .slice(0, 5)
-  .map((customer, index) => 
-    `${index + 1}. ${customer.firstName} ${customer.lastName} - ${formatPrice(customer.totalSpent || 0)}`
-  ).join('\n')}
+          .slice(0, 10);
 
-CUSTOMER DETAILS:
-${filteredCustomers.map(customer => `
-Name: ${customer.firstName} ${customer.lastName}
-Email: ${customer.email}
-Phone: ${customer.phone}
-Status: ${customer.isActive ? 'Active' : 'Inactive'}
-Total Orders: ${customer.totalOrders || 0}
-Total Spent: ${formatPrice(customer.totalSpent || 0)}
-Average Order Value: ${formatPrice(customer.averageOrderValue || 0)}
-Customer Lifetime Value: ${formatPrice(customer.customerLifetimeValue || 0)}
-Orders This Month: ${customer.ordersThisMonth || 0}
-Spending This Month: ${formatPrice(customer.spendingThisMonth || 0)}
-Last Order: ${formatDate(customer.lastOrderDate)}
-Join Date: ${formatDate(customer.createdAt)}
----`).join('\n')}
-        `;
-        break;
+        topCustomers.forEach((customer, index) => {
+          checkNewPage(15);
+          const customerText = `${index + 1}. ${customer.firstName || ''} ${customer.lastName || ''} - ${formatPrice(customer.totalSpent || 0)} (${customer.totalOrders || 0} orders)`;
+          yPosition = addText(customerText, 20, yPosition);
+          yPosition += 5;
+        });
 
-      case 'spending_analysis':
-        reportContent = `
-CUSTOMER SPENDING ANALYSIS REPORT
-Generated on: ${reportDate}
-Report Period: Last ${reportPeriod} days
+        yPosition += 15;
 
-SPENDING STATISTICS:
-- Total Revenue: ${formatPrice(totalRevenue)}
-- Average Customer Value: ${formatPrice(totalRevenue / totalCustomers)}
-- Revenue This Month: ${formatPrice(revenueThisMonth)}
-- Average Order Value: ${formatPrice(averageOrderValue)}
+        // Customer details table
+        checkNewPage(50);
+        doc.setFontSize(14);
+        doc.setTextColor(31, 41, 55);
+        doc.text('CUSTOMER DETAILS', 20, yPosition);
+        yPosition += 15;
 
-SPENDING DISTRIBUTION:
-${filteredCustomers
-  .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0))
-  .map(customer => 
-    `${customer.firstName} ${customer.lastName}: ${formatPrice(customer.totalSpent || 0)} (${customer.totalOrders || 0} orders)`
-  ).join('\n')}
+        doc.setFontSize(8);
+        doc.setTextColor(55, 65, 81);
 
-HIGH-VALUE CUSTOMERS (>LKR 100,000):
-${filteredCustomers
+        filteredCustomers.forEach((customer, index) => {
+          checkNewPage(40);
+          
+          const customerDetails = [
+            `Name: ${customer.firstName || ''} ${customer.lastName || ''}`,
+            `Email: ${customer.email || ''}`,
+            `Phone: ${customer.phone || ''}`,
+            `Status: ${customer.isActive ? 'Active' : 'Inactive'}`,
+            `Total Orders: ${customer.totalOrders || 0}`,
+            `Total Spent: ${formatPrice(customer.totalSpent || 0)}`,
+            `Average Order Value: ${formatPrice(customer.averageOrderValue || 0)}`,
+            `Orders This Month: ${customer.ordersThisMonth || 0}`,
+            `Spending This Month: ${formatPrice(customer.spendingThisMonth || 0)}`,
+            `Last Order: ${formatDate(customer.lastOrderDate)}`,
+            `Join Date: ${formatDate(customer.createdAt)}`
+          ];
+
+          customerDetails.forEach(detail => {
+            yPosition = addText(detail, 20, yPosition, pageWidth - 40);
+            yPosition += 3;
+          });
+          
+          yPosition += 10;
+          if (index < filteredCustomers.length - 1) {
+            doc.setDrawColor(200, 200, 200);
+            doc.line(20, yPosition, pageWidth - 20, yPosition);
+            yPosition += 10;
+          }
+        });
+
+      } else if (reportType === 'spending_analysis') {
+        // Spending statistics
+        doc.setFontSize(14);
+        doc.setTextColor(31, 41, 55);
+        doc.text('SPENDING STATISTICS', 20, yPosition);
+        yPosition += 15;
+
+        doc.setFontSize(10);
+        doc.setTextColor(55, 65, 81);
+        
+        const spendingStats = [
+          `Total Revenue: ${formatPrice(totalRevenue)}`,
+          `Average Customer Value: ${formatPrice(totalRevenue / totalCustomers)}`,
+          `Revenue This Month: ${formatPrice(revenueThisMonth)}`,
+          `Average Order Value: ${formatPrice(averageOrderValue)}`,
+          `Total Orders: ${totalOrders}`,
+          `Active Customers: ${activeCustomers}`
+        ];
+
+        spendingStats.forEach(stat => {
+          checkNewPage(10);
+          yPosition = addText(stat, 20, yPosition);
+          yPosition += 5;
+        });
+
+        yPosition += 15;
+
+        // High-value customers
+        checkNewPage(30);
+        doc.setFontSize(14);
+        doc.setTextColor(31, 41, 55);
+        doc.text('HIGH-VALUE CUSTOMERS (>LKR 100,000)', 20, yPosition);
+        yPosition += 15;
+
+        doc.setFontSize(10);
+        doc.setTextColor(55, 65, 81);
+        
+        const highValueCustomers = filteredCustomers
   .filter(c => (c.totalSpent || 0) > 100000)
-  .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0))
-  .map(customer => 
-    `${customer.firstName} ${customer.lastName}: ${formatPrice(customer.totalSpent || 0)}`
-  ).join('\n')}
-        `;
-        break;
+          .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0));
 
-      case 'monthly_activity':
-        reportContent = `
-MONTHLY CUSTOMER ACTIVITY REPORT
-Generated on: ${reportDate}
-Report Period: Last ${reportPeriod} days
+        if (highValueCustomers.length > 0) {
+          highValueCustomers.forEach((customer, index) => {
+            checkNewPage(15);
+            const customerText = `${index + 1}. ${customer.firstName || ''} ${customer.lastName || ''} - ${formatPrice(customer.totalSpent || 0)} (${customer.totalOrders || 0} orders)`;
+            yPosition = addText(customerText, 20, yPosition);
+            yPosition += 5;
+          });
+        } else {
+          yPosition = addText('No high-value customers found (>LKR 100,000)', 20, yPosition);
+          yPosition += 10;
+        }
 
-MONTHLY STATISTICS:
-- Total Orders This Month: ${filteredCustomers.reduce((sum, c) => sum + (c.ordersThisMonth || 0), 0)}
-- Total Revenue This Month: ${formatPrice(revenueThisMonth)}
-- Active Customers This Month: ${filteredCustomers.filter(c => (c.ordersThisMonth || 0) > 0).length}
+        yPosition += 15;
 
-CUSTOMER ACTIVITY THIS MONTH:
-${filteredCustomers
+        // Spending distribution
+        checkNewPage(30);
+        doc.setFontSize(14);
+        doc.setTextColor(31, 41, 55);
+        doc.text('SPENDING DISTRIBUTION', 20, yPosition);
+        yPosition += 15;
+
+        doc.setFontSize(10);
+        doc.setTextColor(55, 65, 81);
+        
+        const spendingDistribution = filteredCustomers
+          .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0));
+
+        spendingDistribution.forEach((customer, index) => {
+          checkNewPage(15);
+          const customerText = `${customer.firstName || ''} ${customer.lastName || ''}: ${formatPrice(customer.totalSpent || 0)} (${customer.totalOrders || 0} orders)`;
+          yPosition = addText(customerText, 20, yPosition);
+          yPosition += 5;
+        });
+
+      } else if (reportType === 'monthly_activity') {
+        // Monthly statistics
+        doc.setFontSize(14);
+        doc.setTextColor(31, 41, 55);
+        doc.text('MONTHLY STATISTICS', 20, yPosition);
+        yPosition += 15;
+
+        doc.setFontSize(10);
+        doc.setTextColor(55, 65, 81);
+        
+        const monthlyStats = [
+          `Total Orders This Month: ${filteredCustomers.reduce((sum, c) => sum + (c.ordersThisMonth || 0), 0)}`,
+          `Total Revenue This Month: ${formatPrice(revenueThisMonth)}`,
+          `Active Customers This Month: ${filteredCustomers.filter(c => (c.ordersThisMonth || 0) > 0).length}`,
+          `Average Orders Per Customer: ${(filteredCustomers.reduce((sum, c) => sum + (c.ordersThisMonth || 0), 0) / totalCustomers).toFixed(2)}`,
+          `Average Spending Per Customer: ${formatPrice(revenueThisMonth / totalCustomers)}`
+        ];
+
+        monthlyStats.forEach(stat => {
+          checkNewPage(10);
+          yPosition = addText(stat, 20, yPosition);
+          yPosition += 5;
+        });
+
+        yPosition += 15;
+
+        // Customer activity this month
+        checkNewPage(30);
+        doc.setFontSize(14);
+        doc.setTextColor(31, 41, 55);
+        doc.text('CUSTOMER ACTIVITY THIS MONTH', 20, yPosition);
+        yPosition += 15;
+
+        doc.setFontSize(10);
+        doc.setTextColor(55, 65, 81);
+        
+        const activeCustomersThisMonth = filteredCustomers
   .filter(c => (c.ordersThisMonth || 0) > 0)
-  .sort((a, b) => (b.ordersThisMonth || 0) - (a.ordersThisMonth || 0))
-  .map(customer => 
-    `${customer.firstName} ${customer.lastName}: ${customer.ordersThisMonth || 0} orders, ${formatPrice(customer.spendingThisMonth || 0)}`
-  ).join('\n')}
+          .sort((a, b) => (b.ordersThisMonth || 0) - (a.ordersThisMonth || 0));
 
-INACTIVE CUSTOMERS (No orders this month):
-${filteredCustomers
-  .filter(c => (c.ordersThisMonth || 0) === 0)
-  .map(customer => 
-    `${customer.firstName} ${customer.lastName} (Last order: ${formatDate(customer.lastOrderDate)})`
-  ).join('\n')}
-        `;
-        break;
-    }
+        if (activeCustomersThisMonth.length > 0) {
+          activeCustomersThisMonth.forEach((customer, index) => {
+            checkNewPage(15);
+            const customerText = `${index + 1}. ${customer.firstName || ''} ${customer.lastName || ''} - ${customer.ordersThisMonth || 0} orders, ${formatPrice(customer.spendingThisMonth || 0)}`;
+            yPosition = addText(customerText, 20, yPosition);
+            yPosition += 5;
+          });
+        } else {
+          yPosition = addText('No customer activity this month', 20, yPosition);
+          yPosition += 10;
+        }
 
-    // Create and download the report
-    const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `customer_report_${reportType}_${new Date().toISOString().split('T')[0]}.txt`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+        yPosition += 15;
 
-    toast.success('Report generated successfully!');
+        // Inactive customers
+        checkNewPage(30);
+        doc.setFontSize(14);
+        doc.setTextColor(31, 41, 55);
+        doc.text('INACTIVE CUSTOMERS (No orders this month)', 20, yPosition);
+        yPosition += 15;
+
+        doc.setFontSize(10);
+        doc.setTextColor(55, 65, 81);
+        
+        const inactiveCustomers = filteredCustomers
+          .filter(c => (c.ordersThisMonth || 0) === 0);
+
+        if (inactiveCustomers.length > 0) {
+          inactiveCustomers.forEach((customer, index) => {
+            checkNewPage(15);
+            const customerText = `${index + 1}. ${customer.firstName || ''} ${customer.lastName || ''} (Last order: ${formatDate(customer.lastOrderDate)})`;
+            yPosition = addText(customerText, 20, yPosition);
+            yPosition += 5;
+          });
+        } else {
+          yPosition = addText('All customers have been active this month', 20, yPosition);
+          yPosition += 10;
+        }
+      }
+
+      // Footer with signature space - ensure it's on the last page
+      doc.addPage();
+      
+      // Start signature section higher up on the page
+      const signatureStartY = 60;
+      
+      // Signature section title
+      doc.setFontSize(16);
+      doc.setTextColor(37, 99, 235); // Blue color to match header
+      doc.text('AUTHORIZATION', pageWidth / 2, signatureStartY, { align: 'center' });
+      
+      // Add some space after title
+      const signatureY = signatureStartY + 30;
+      
+      // Signature area labels
+      doc.setFontSize(12);
+      doc.setTextColor(55, 65, 81); // Dark gray
+      
+      // Left side - Signature
+      doc.text('Authorized Signature:', 20, signatureY);
+      
+      // Right side - Date
+      doc.text('Date:', pageWidth - 80, signatureY);
+      
+      // Signature boxes
+      const boxY = signatureY + 15;
+      const boxHeight = 40;
+      
+      // Left signature box
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(1);
+      doc.rect(20, boxY, 120, boxHeight);
+      
+      // Add signature line inside the box
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.5);
+      doc.line(20, boxY + boxHeight/2, 140, boxY + boxHeight/2);
+      
+      // Right date box
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(1);
+      doc.rect(pageWidth - 80, boxY, 60, boxHeight);
+      
+      // Add date line inside the box
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.5);
+      doc.line(pageWidth - 80, boxY + boxHeight/2, pageWidth - 20, boxY + boxHeight/2);
+      
+      // Add labels inside boxes
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text('Signature', 25, boxY + boxHeight/2 - 5);
+      doc.text('Date', pageWidth - 75, boxY + boxHeight/2 - 5);
+      
+      // Add space for printed name below signature
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text('Print Name:', 20, boxY + boxHeight + 15);
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.line(20, boxY + boxHeight + 20, 140, boxY + boxHeight + 20);
+      
+      // Add title/position below signature
+      doc.text('Title/Position:', 20, boxY + boxHeight + 30);
+      doc.line(20, boxY + boxHeight + 35, 140, boxY + boxHeight + 35);
+      
+      // Footer line
+      const footerY = pageHeight - 30;
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.line(20, footerY - 10, pageWidth - 20, footerY - 10);
+      
+      // Print generation date
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Report generated on: ${new Date().toLocaleDateString('en-LK')}`, pageWidth / 2, footerY, { align: 'center' });
+
+      // Save the PDF
+      const fileName = `customer_report_${reportType}_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+
+      toast.success('PDF report generated successfully!', { id: 'pdf-generation' });
     setShowReportModal(false);
+    } catch (error) {
+      console.error('Error generating PDF report:', error);
+      toast.error('Failed to generate PDF report. Please try again.', { id: 'pdf-generation' });
+    }
   };
 
   return (
@@ -628,7 +927,7 @@ ${filteredCustomers
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '320px' }}>
                       Customer
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">
@@ -663,18 +962,11 @@ ${filteredCustomers
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredCustomers.map((customer) => (
                     <tr key={customer._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4" style={{ minWidth: '320px' }}>
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                              <span className="text-sm font-medium text-blue-600">
-                                {customer.firstName.charAt(0)}{customer.lastName.charAt(0)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="ml-4">
+                          <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium text-gray-900">
-                              {customer.firstName} {customer.lastName}
+                              {customer.firstName || ''} {customer.lastName || ''}
                             </div>
                             <div className="text-sm text-gray-500">
                               ID: {customer._id}
@@ -683,8 +975,8 @@ ${filteredCustomers
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{customer.email}</div>
-                        <div className="text-sm text-gray-500">{customer.phone}</div>
+                        <div className="text-sm text-gray-900">{customer.email || ''}</div>
+                        <div className="text-sm text-gray-500">{customer.phone || ''}</div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 truncate max-w-xs">
@@ -914,7 +1206,7 @@ ${filteredCustomers
 
                 {/* Report Preview */}
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Report Preview</h4>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">PDF Report Preview</h4>
                   <p className="text-xs text-gray-600">
                     {reportType === 'customer_summary' && 'Comprehensive customer overview with spending statistics and top customers'}
                     {reportType === 'spending_analysis' && 'Detailed spending patterns and high-value customer identification'}
@@ -923,6 +1215,11 @@ ${filteredCustomers
                   <p className="text-xs text-gray-500 mt-1">
                     Will include {filteredCustomers.length} customers
                   </p>
+                  <div className="mt-2 p-2 bg-blue-50 rounded border-l-4 border-blue-400">
+                    <p className="text-xs text-blue-700">
+                      <strong>PDF Features:</strong> Professional layout with company logo header and signature space footer
+                  </p>
+                  </div>
                 </div>
 
                 {/* Actions */}
@@ -935,9 +1232,10 @@ ${filteredCustomers
                   </button>
                   <button
                     onClick={handleGenerateReport}
-                    className="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700"
+                    className="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 flex items-center"
                   >
-                    Generate Report
+                    <FileText className="h-4 w-4 mr-2" />
+                    Generate PDF Report
                   </button>
                 </div>
               </div>

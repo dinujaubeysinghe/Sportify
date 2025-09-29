@@ -42,11 +42,12 @@ router.put('/profile', protect, [
   body('firstName').optional().trim().notEmpty().withMessage('First name cannot be empty'),
   body('lastName').optional().trim().notEmpty().withMessage('Last name cannot be empty'),
   body('phone').optional().trim(),
-  body('address.street').optional().trim(),
-  body('address.city').optional().trim(),
-  body('address.state').optional().trim(),
-  body('address.zipCode').optional().trim(),
-  body('address.country').optional().trim()
+  body('address').optional().trim(),
+  body('city').optional().trim(),
+  body('state').optional().trim(),
+  body('zipCode').optional().trim(),
+  body('country').optional().trim(),
+  body('bio').optional().trim().isLength({ max: 500 }).withMessage('Bio cannot exceed 500 characters')
 ], updateProfile);
 
 // Change password

@@ -163,11 +163,24 @@ exports.updateProfile = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
 
-    const allowedUpdates = ['firstName', 'lastName', 'phone', 'address'];
+    const allowedUpdates = ['firstName', 'lastName', 'phone', 'bio'];
     const updates = {};
+    
+    // Handle direct fields
     allowedUpdates.forEach(field => {
       if (req.body[field] !== undefined) updates[field] = req.body[field];
     });
+
+    // Handle address fields
+    if (req.body.address || req.body.city || req.body.state || req.body.zipCode || req.body.country) {
+      updates.address = {
+        street: req.body.address || '',
+        city: req.body.city || '',
+        state: req.body.state || '',
+        zipCode: req.body.zipCode || '',
+        country: req.body.country || ''
+      };
+    }
 
     const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true }).select('-password');
     res.json({ success: true, message: 'Profile updated successfully', user });
