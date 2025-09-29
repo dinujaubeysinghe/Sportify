@@ -338,7 +338,9 @@ const Checkout = () => {
                         <input
                           type="tel"
                           value={shippingInfo.phone}
-                          onChange={(e) => handleShippingChange('phone', e.target.value)}
+                          onChange={(e) => handleShippingChange('phone', e.target.value.replace(/\D/g, ""))}
+                          maxLength={10}
+                          placeholder="0712345678"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           required
                         />
@@ -423,7 +425,8 @@ const Checkout = () => {
                         <input
                           type="text"
                           value={paymentInfo.cardNumber}
-                          onChange={(e) => handlePaymentChange('cardNumber', e.target.value)}
+                          onChange={(e) => handlePaymentChange('cardNumber', e.target.value.replace(/\D/g, ""))}
+                          maxLength={16}
                           placeholder="1234 5678 9012 3456"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           required
@@ -451,7 +454,8 @@ const Checkout = () => {
                           <input
                             type="text"
                             value={paymentInfo.cvv}
-                            onChange={(e) => handlePaymentChange('cvv', e.target.value)}
+                            onChange={(e) => handlePaymentChange('cvv', e.target.value.replace(/\D/g,  ""))}
+                            maxLength={4}
                             placeholder="123"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             required
