@@ -49,6 +49,7 @@ import SupplierAnalysis from './pages/supplier/InventoryAnalysisReport';
 import StaffDashboard from './pages/staff/Dashboard';
 import StaffOrders from './pages/staff/Orders';
 import StaffSupport from './pages/staff/Support';
+import Customers from './pages/staff/Customers';
 
 // Protected Routes
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -211,6 +212,11 @@ function App() {
                     <Route path="/staff/support" element={
                       <StaffRoute>
                         <StaffSupport />
+                      </StaffRoute>
+                    } />
+                    <Route path="/staff/customers" element={
+                      <StaffRoute>
+                        <Customers />
                       </StaffRoute>
                     } />
                   </Routes>

@@ -92,6 +92,7 @@ const RoleBasedNavbar = () => {
         return [
           { name: 'Dashboard', href: '/staff', icon: LayoutDashboard },
           { name: 'Orders', href: '/staff/orders', icon: ShoppingCart },
+          { name: 'Customers', href: '/staff/customers', icon: Users },
           { name: 'Support', href: '/staff/support', icon: MessageCircle }
         ];
       default:
