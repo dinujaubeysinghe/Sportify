@@ -1,89 +1,201 @@
 import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { useNavigate } from 'react-router-dom';
 import { 
   ShoppingCart, 
-  Users, 
   MessageCircle, 
   Clock,
-  CheckCircle,
-  AlertCircle,
-  Phone,
-  Mail,
+  Truck,
+  UserPlus,
   Calendar,
-  TrendingUp,
-  Package,
-  Truck
+  Users,
+  AlertCircle,
+  Eye,
+  CheckCircle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const StaffDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
+  const [supportTickets, setSupportTickets] = useState([]);
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: 'LKR'
+    }).format(price);
+  };
 
   useEffect(() => {
-    // Simulate loading dashboard data
     const loadDashboardData = async () => {
-      setIsLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock data for development
-      setDashboardData({
-        stats: {
-          pendingOrders: 12,
-          completedOrders: 45,
-          totalCustomers: 1280,
-          supportTickets: 8,
-          todayOrders: 23,
-          weeklyOrders: 156
-        },
-        recentOrders: [],
-        supportTickets: [],
-        recentCustomers: []
-      });
-      setIsLoading(false);
+      try {
+        // Load dashboard stats
+        const statsResponse = await axios.get('/dashboard/stats');
+        const statsData = statsResponse.data.stats;
+
+        // Load recent support tickets
+        try {
+          const ticketsResponse = await axios.get('/support-tickets?limit=5');
+          console.log('Support tickets loaded:', ticketsResponse.data);
+          setSupportTickets(ticketsResponse.data.tickets || []);
+        } catch (ticketError) {
+          console.error('Error loading support tickets:', ticketError);
+          // Mock data for development
+          const mockTickets = [
+            {
+              _id: '1',
+              ticketNumber: 'TKT-001',
+              subject: 'Product delivery issue',
+              customer: { firstName: 'John', lastName: 'Doe', email: 'john@example.com' },
+              status: 'open',
+              priority: 'high',
+              createdAt: new Date().toISOString()
+            },
+            {
+              _id: '2',
+              ticketNumber: 'TKT-002',
+              subject: 'Payment problem',
+              customer: { firstName: 'Jane', lastName: 'Smith', email: 'jane@example.com' },
+              status: 'open',
+              priority: 'medium',
+              createdAt: new Date().toISOString()
+            }
+          ];
+          console.log('Using mock tickets:', mockTickets);
+          setSupportTickets(mockTickets);
+        }
+
+        setDashboardData({
+          stats: {
+            pendingOrders: statsData.orders.pendingOrders || 0,
+            completedOrders: statsData.orders.completedOrders || 0,
+            totalCustomers: statsData.users.totalCustomers || 0,
+            supportTickets: statsData.notifications.unreadNotifications || 0,
+            todayOrders: statsData.today.todayOrders || 0,
+            weeklyOrders: statsData.orders.totalOrders || 0,
+            totalRevenue: statsData.orders.totalRevenue || 0,
+            changes: statsData.changes || { orders: 0, revenue: 0 }
+          }
+        });
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        // Set mock data for development
+        setDashboardData({
+          stats: {
+            pendingOrders: 1,
+            completedOrders: 1,
+            totalCustomers: 3,
+            supportTickets: 4,
+            todayOrders: 3,
+            weeklyOrders: 15,
+            totalRevenue: 2500,
+            changes: { orders: 0, revenue: 0 }
+          }
+        });
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadDashboardData();
   }, []);
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price);
+  // Handle task card clicks
+  const handleTaskClick = (taskName) => {
+    switch (taskName) {
+      case 'Orders to Process':
+        navigate('/staff/orders');
+        break;
+      case 'Orders Shipped Today':
+        navigate('/staff/orders');
+        break;
+      case 'New Customers Today':
+        navigate('/staff/customers');
+        break;
+      case 'Support Tickets':
+        navigate('/staff/support');
+        break;
+      default:
+        toast.info('Feature coming soon!');
+    }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'processing':
-        return 'bg-blue-100 text-blue-800';
-      case 'shipped':
-        return 'bg-green-100 text-green-800';
-      case 'delivered':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'open': return 'bg-red-100 text-red-800';
+      case 'in_progress': return 'bg-yellow-100 text-yellow-800';
+      case 'resolved': return 'bg-green-100 text-green-800';
+      case 'closed': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'high':
-        return 'bg-red-100 text-red-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'low':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-LK', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const stats = [
+    {
+      name: 'Orders to Process',
+      value: dashboardData?.stats.pendingOrders || 0,
+      icon: Clock,
+      color: 'text-yellow-600',
+      bgColor: 'bg-yellow-100',
+      action: 'Review & process pending orders',
+      actionType: 'urgent',
+      clickable: true
+    },
+    {
+      name: 'Orders Shipped Today',
+      value: dashboardData?.stats.completedOrders || 0,
+      icon: Truck,
+      color: 'text-green-600',
+      bgColor: 'bg-green-100',
+      action: 'Track shipment status',
+      actionType: 'completed',
+      clickable: true
+    },
+    {
+      name: 'New Customers Today',
+      value: dashboardData?.stats.todayOrders || 0,
+      icon: UserPlus,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-100',
+      action: 'Welcome new customers',
+      actionType: 'info',
+      clickable: true
+    },
+    {
+      name: 'Support Tickets',
+      value: dashboardData?.stats.supportTickets || 0,
+      icon: MessageCircle,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-100',
+      action: 'Respond to customer inquiries',
+      actionType: 'attention',
+      clickable: true
+    }
+  ];
 
   if (isLoading) {
     return (
@@ -92,45 +204,6 @@ const StaffDashboard = () => {
       </div>
     );
   }
-
-  const stats = [
-    {
-      name: 'Pending Orders',
-      value: dashboardData?.stats.pendingOrders || 0,
-      icon: Clock,
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-100',
-      change: '+3',
-      changeType: 'positive'
-    },
-    {
-      name: 'Completed Orders',
-      value: dashboardData?.stats.completedOrders || 0,
-      icon: CheckCircle,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100',
-      change: '+12%',
-      changeType: 'positive'
-    },
-    {
-      name: 'Total Customers',
-      value: dashboardData?.stats.totalCustomers || 0,
-      icon: Users,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100',
-      change: '+8%',
-      changeType: 'positive'
-    },
-    {
-      name: 'Support Tickets',
-      value: dashboardData?.stats.supportTickets || 0,
-      icon: MessageCircle,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100',
-      change: '-2',
-      changeType: 'negative'
-    }
-  ];
 
   return (
     <>
@@ -141,250 +214,188 @@ const StaffDashboard = () => {
 
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Staff Dashboard</h1>
-            <p className="text-gray-600 mt-2">
-              Welcome back, {user?.firstName}! Here's what needs your attention today.
-            </p>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {stats.map((stat) => (
-              <div key={stat.name} className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">{stat.name}</p>
-                    <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
-                    <div className="flex items-center mt-2">
-                      <span className={`text-sm font-medium ${
-                        stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {stat.change}
-                      </span>
-                      <span className="text-sm text-gray-500 ml-1">vs yesterday</span>
-                    </div>
-                  </div>
-                  <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                    <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                  </div>
+          {/* Today's Tasks */}
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mb-8">
+            <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 p-6 border-b border-indigo-200">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg mr-3">
+                  <Calendar className="h-5 w-5 text-white" />
                 </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Recent Orders */}
-            <div className="bg-white rounded-lg shadow-sm">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
-                  <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                    View all
-                  </button>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="space-y-4">
-                  {dashboardData?.recentOrders.map((order) => (
-                    <div key={order.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="font-medium text-gray-900">#{order.id}</p>
-                          <div className="flex space-x-2">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
-                              {order.status}
-                            </span>
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(order.priority)}`}>
-                              {order.priority}
-                            </span>
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-600">{order.customer}</p>
-                        <p className="text-sm text-gray-500">{order.items} items • {order.date}</p>
-                      </div>
-                      <div className="text-right ml-4">
-                        <p className="font-semibold text-gray-900">{formatPrice(order.total)}</p>
-                        <div className="flex space-x-1 mt-1">
-                          <button className="text-blue-600 hover:text-blue-700">
-                            <Phone className="h-4 w-4" />
-                          </button>
-                          <button className="text-gray-600 hover:text-gray-700">
-                            <Mail className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Support Tickets */}
-            <div className="bg-white rounded-lg shadow-sm">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900">Support Tickets</h2>
-                  <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                    View all
-                  </button>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="space-y-4">
-                  {dashboardData?.supportTickets.map((ticket) => (
-                    <div key={ticket.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="font-medium text-gray-900">#{ticket.id}</p>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(ticket.priority)}`}>
-                            {ticket.priority}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600">{ticket.subject}</p>
-                        <p className="text-sm text-gray-500">{ticket.customer} • {ticket.date}</p>
-                      </div>
-                      <div className="text-right ml-4">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          ticket.status === 'open' 
-                            ? 'bg-red-100 text-red-800'
-                            : ticket.status === 'in-progress'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {ticket.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Customers */}
-          <div className="bg-white rounded-lg shadow-sm mb-8">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Recent Customers</h2>
-                <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                  View all customers
-                </button>
+                <h2 className="text-xl font-bold text-gray-900">Today's Tasks</h2>
               </div>
             </div>
             <div className="p-6">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Customer
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Contact
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Orders
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Total Spent
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Last Order
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {dashboardData?.recentCustomers.map((customer) => (
-                      <tr key={customer.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{customer.name}</div>
-                            <div className="text-sm text-gray-500">ID: {customer.id}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm text-gray-900">{customer.email}</div>
-                            <div className="text-sm text-gray-500">{customer.phone}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {customer.orders}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatPrice(customer.totalSpent)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {customer.lastOrder}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            customer.status === 'active' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {customer.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {stats.map((stat, index) => (
+                  <div 
+                    key={index} 
+                    onClick={() => stat.clickable && handleTaskClick(stat.name)}
+                    className={`p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-lg ${
+                      stat.clickable ? 'cursor-pointer hover:scale-105' : ''
+                    } ${
+                      stat.actionType === 'urgent' 
+                        ? 'bg-red-50 border-red-200 hover:bg-red-100 hover:border-red-300' 
+                        : stat.actionType === 'completed'
+                        ? 'bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300'
+                        : stat.actionType === 'attention'
+                        ? 'bg-orange-50 border-orange-200 hover:bg-orange-100 hover:border-orange-300'
+                        : 'bg-blue-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        stat.actionType === 'urgent' 
+                          ? 'bg-red-500' 
+                          : stat.actionType === 'completed'
+                          ? 'bg-green-500'
+                          : stat.actionType === 'attention'
+                          ? 'bg-orange-500'
+                          : 'bg-blue-500'
+                      }`}>
+                        <stat.icon className="h-4 w-4 text-white" />
+                      </div>
+                      <span className={`text-2xl font-bold ${
+                        stat.actionType === 'urgent' ? 'text-red-600' : 
+                        stat.actionType === 'completed' ? 'text-green-600' :
+                        stat.actionType === 'attention' ? 'text-orange-600' : 'text-blue-600'
+                      }`}>
+                        {stat.value}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-700 mb-1">{stat.name}</p>
+                    <p className="text-xs text-gray-600">{stat.action}</p>
+                    {stat.clickable && (
+                      <div className="mt-2 flex items-center text-xs text-gray-500">
+                        <span>Click to {stat.action.toLowerCase()}</span>
+                        <span className="ml-1">→</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Recent Activity */}
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="flex items-center">
-                <div className="p-3 rounded-lg bg-blue-100">
-                  <ShoppingCart className="h-6 w-6 text-blue-600" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+              <div className="space-y-3">
+                <button 
+                  onClick={() => navigate('/staff/orders')}
+                  className="w-full flex items-center p-3 text-left rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                >
+                  <ShoppingCart className="h-5 w-5 text-blue-600 mr-3" />
+                  <div>
+                    <p className="font-medium text-gray-900">Manage Orders</p>
+                    <p className="text-sm text-gray-600">Process and track customer orders</p>
+                  </div>
+                </button>
+                <button 
+                  onClick={() => navigate('/staff/customers')}
+                  className="w-full flex items-center p-3 text-left rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                >
+                  <Users className="h-5 w-5 text-green-600 mr-3" />
+                  <div>
+                    <p className="font-medium text-gray-900">Customer Management</p>
+                    <p className="text-sm text-gray-600">View and manage customers</p>
+                  </div>
+                </button>
+                <button 
+                  onClick={() => navigate('/staff/support')}
+                  className="w-full flex items-center p-3 text-left rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                >
+                  <MessageCircle className="h-5 w-5 text-purple-600 mr-3" />
+                  <div>
+                    <p className="font-medium text-gray-900">Customer Support</p>
+                    <p className="text-sm text-gray-600">Handle customer inquiries</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Dashboard Stats */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Dashboard Overview</h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Total Orders This Week</span>
+                  <span className="font-semibold text-gray-900">{dashboardData?.stats.weeklyOrders || 0}</span>
                 </div>
-                <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">Process Orders</h3>
-                  <p className="text-sm text-gray-600">Review and process pending orders</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Total Revenue</span>
+                  <span className="font-semibold text-gray-900">
+                    {formatPrice(dashboardData?.stats.totalRevenue || 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Total Customers</span>
+                  <span className="font-semibold text-gray-900">{dashboardData?.stats.totalCustomers || 0}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Pending Orders</span>
+                  <span className="font-semibold text-red-600">{dashboardData?.stats.pendingOrders || 0}</span>
                 </div>
               </div>
-              <button className="mt-4 w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-                Process Orders
+            </div>
+          </div>
+
+          {/* Support Tickets Widget */}
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                  <MessageCircle className="h-4 w-4 text-purple-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Recent Support Tickets</h3>
+              </div>
+              <button
+                onClick={() => navigate('/staff/support')}
+                className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+              >
+                View All →
               </button>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="flex items-center">
-                <div className="p-3 rounded-lg bg-green-100">
-                  <MessageCircle className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">Support Center</h3>
-                  <p className="text-sm text-gray-600">Handle customer support tickets</p>
-                </div>
+            {supportTickets.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <MessageCircle className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                <p>No support tickets yet</p>
+                <p className="text-xs text-gray-400 mt-2">
+                  Submit a message via the Contact page to create a support ticket
+                </p>
               </div>
-              <button className="mt-4 w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
-                Support Center
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="flex items-center">
-                <div className="p-3 rounded-lg bg-purple-100">
-                  <Users className="h-6 w-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">Customer Management</h3>
-                  <p className="text-sm text-gray-600">View and manage customer accounts</p>
-                </div>
+            ) : (
+              <div className="space-y-3">
+                {supportTickets.map((ticket) => (
+                  <div key={ticket._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium text-gray-900">{ticket.ticketNumber}</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
+                          {ticket.status}
+                        </span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(ticket.priority)}`}>
+                          {ticket.priority}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 mb-1">{ticket.subject}</p>
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <span>{ticket.customer.firstName} {ticket.customer.lastName}</span>
+                        <span>{formatDate(ticket.createdAt)}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigate('/staff/support')}
+                      className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
-              <button className="mt-4 w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors">
-                Manage Customers
-                  </button>
-            </div>
+            )}
           </div>
         </div>
       </div>

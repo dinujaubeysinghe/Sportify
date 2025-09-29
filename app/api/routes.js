@@ -12,6 +12,14 @@ router.use('/orders', require('./routes/orderRoutes'));
 router.use('/suppliers', require('./routes/supplierRoutes'));
 router.use('/inventory', require('./routes/inventoryRoutes'));
 router.use('/admin', require('./routes/adminRoutes'));
+router.use('/payroll', require('./routes/payrollRoutes'));
+router.use('/dashboard', require('./routes/dashboardRoutes'));
+router.use('/support-tickets', require('./routes/supportTicketRoutes'));
+router.use('/pdf', require('./routes/pdfRoutes'));
+
+// Public routes (no auth)
+const { publicCreateTicket } = require('./controllers/supportTicketController');
+router.post('/public/contact', publicCreateTicket);
 
 // Health check
 router.get('/health', (req, res) => {
