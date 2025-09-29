@@ -13,6 +13,7 @@ import Footer from './components/layout/Footer';
 
 // Pages
 import Home from './pages/Home';
+import Contact from './pages/Contact';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
@@ -78,6 +79,7 @@ function App() {
                   <Routes>
                     {/* Public Routes */}
                     <Route path="/" element={<Home />} />
+                    <Route path="/contact" element={<Contact/>} />
                     <Route path="/products" element={<Products />} />
                     <Route path="/products/:id" element={<ProductDetail />} />
                     <Route path="/login" element={<Login />} />
