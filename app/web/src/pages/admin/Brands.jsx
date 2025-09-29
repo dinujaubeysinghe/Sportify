@@ -134,6 +134,16 @@ const AdminBrands = () => {
       deleteMutation.mutate(id);
     }
   };
+  const handleActivate = async (id) => {
+    try {
+      const response = await axios.put(`/brands/activate/${id}`);
+      toast.success('Brand activated successfully!');
+      queryClient.invalidateQueries(['admin-brands']);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to activate brand');
+    }
+  };
+
 
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
@@ -245,12 +255,24 @@ const AdminBrands = () => {
                   >
                     <Edit className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => handleDelete(brand._id)}
-                    className="p-1 text-red-600 hover:bg-red-100 rounded"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    {brand.isActive ? (
+                      <button
+                        onClick={() => handleDelete(brand._id)}
+                        className="p-1 text-red-600 hover:bg-red-100 rounded"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleActivate(brand._id)}
+                        className="p-1 text-green-600 hover:bg-green-100 rounded"
+                      >
+                        Activate
+                      </button>
+                    )}
+
+
+                  
                 </div>
               </div>
             </div>

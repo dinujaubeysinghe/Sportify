@@ -47,42 +47,55 @@ const SupplierProducts = () => {
   // Form: Add product
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
-  const createMutation = useMutation(
-    async (formValues) => {
-      const formData = new FormData();
-      Object.entries(formValues).forEach(([key, value]) => {
-        if (key === 'images' && value && value.length) {
-          for (let i = 0; i < value.length; i++) formData.append('images', value[i]);
-        } else {
-          formData.append(key, value);
+const createMutation = useMutation(
+  async (formValues) => {
+    const formData = new FormData();
+    Object.entries(formValues).forEach(([key, value]) => {
+      if (key === 'images' && value && value.length) {
+        for (let i = 0; i < value.length; i++) {
+          formData.append('images', value[i]);
         }
-      });
-      const res = await axios.post('/products', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      console.log('Product :',res.data);
+      } else {
+        formData.append(key, value);
+      }
+    });
 
-      const productId = res.data.product._id;
+    console.log('Pre formData :', formData);
 
-      console.log('stock', res.data.product.stock);
-      const InventoryData = {
-        quantity: res.data.product.stock,
-        reason: 'Adding New Product',
-        cost: res.data.product.stock * res.data.product.price,
-        notes: ''
-      };
-      const inventory = await axios.post(`/inventory/supplier/${productId}/add-stock`, InventoryData);
-      console.log('inventory: ', inventory);
-      return res.data;
+    const res = await axios.post('/products', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    console.log('Product :', res.data);
+
+    const productId = res.data.product._id;
+
+    console.log('stock', res.data.product.stock);
+    const InventoryData = {
+      quantity: res.data.product.stock,
+      reason: 'Adding New Product',
+      cost: res.data.product.stock * res.data.product.price,
+      notes: '',
+    };
+    const inventory = await axios.post(
+      `/inventory/supplier/${productId}/add-stock`,
+      InventoryData
+    );
+    console.log('inventory: ', inventory);
+
+    return res.data;
+  },
+  {
+    onSuccess: () => {
+      toast.success('Product created');
+      queryClient.invalidateQueries('supplier-products');
+      setIsAddOpen(false);
+      reset();
     },
-    {
-      onSuccess: () => {
-        toast.success('Product created');
-        queryClient.invalidateQueries('supplier-products');
-        setIsAddOpen(false);
-        reset();
-      },
-      onError: (err) => toast.error(err.response?.data?.message || 'Failed to create product')
-    }
-  );
+    onError: (err) =>
+      toast.error(err.response?.data?.message || 'Failed to create product'),
+  }
+);
+
 
   // Edit
   const { register: registerEdit, handleSubmit: handleEditSubmit, reset: resetEdit, formState: { errors: editErrors }, setValue } = useForm();
@@ -113,6 +126,7 @@ const SupplierProducts = () => {
   // Delete (soft delete)
   const deleteMutation = useMutation(
     async (id) => {
+      await axios.delete(`/inventory/delete/${id}`);
       const res = await axios.delete(`/products/${id}`);
       return res.data;
     },
@@ -311,12 +325,11 @@ const SupplierProducts = () => {
                     type="file"
                     multiple
                     accept="image/*"
+                    {...register("images")}   // ✅ register with react-hook-form
                     onChange={(e) => {
-                      // Save raw FileList into form state
                       const files = e.target.files;
                       if (files?.length) {
-                        // convert FileList to array for easier iteration
-                        setValue("images", Array.from(files));
+                        setValue("images", Array.from(files)); // ✅ keep your manual state set
                       }
                     }}
                   />

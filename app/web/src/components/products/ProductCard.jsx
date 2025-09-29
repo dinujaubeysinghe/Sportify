@@ -75,7 +75,7 @@ const ProductCard = ({ product }) => {
           )}
 
           {/* Quick Actions */}
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          {/* <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <button
               onClick={handleWishlist}
               className="bg-white p-2 rounded-full shadow-md hover:bg-gray-100 transition-colors mb-2"
@@ -83,7 +83,7 @@ const ProductCard = ({ product }) => {
             >
               <Heart className="w-4 h-4 text-gray-600" />
             </button>
-          </div>
+          </div> */}
         </div>
 
         {/* Product Info */}

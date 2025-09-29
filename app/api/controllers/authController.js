@@ -46,7 +46,7 @@ exports.register = async (req, res) => {
     user.verificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
     await user.save({ validateBeforeSave: false });
 
-    const verifyUrl = `${req.protocol}://${req.get('host')}/api/auth/verify-email/${verificationToken}`;
+    const verifyUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
 
     await sendEmail({
       to: user.email,

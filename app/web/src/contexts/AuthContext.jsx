@@ -10,17 +10,14 @@ const initialState = {
   token: null,
   isAuthenticated: false,
   isLoading: true,
-  error: null
+  error: null,
 };
 
 const authReducer = (state, action) => {
   switch (action.type) {
     case 'AUTH_START':
-      return {
-        ...state,
-        isLoading: true,
-        error: null
-      };
+      return { ...state, isLoading: true, error: null };
+
     case 'AUTH_SUCCESS':
       return {
         ...state,
@@ -28,8 +25,9 @@ const authReducer = (state, action) => {
         token: action.payload.token,
         isAuthenticated: true,
         isLoading: false,
-        error: null
+        error: null,
       };
+
     case 'AUTH_FAILURE':
       return {
         ...state,
@@ -37,8 +35,9 @@ const authReducer = (state, action) => {
         token: null,
         isAuthenticated: false,
         isLoading: false,
-        error: action.payload
+        error: action.payload,
       };
+
     case 'LOGOUT':
       return {
         ...state,
@@ -46,54 +45,50 @@ const authReducer = (state, action) => {
         token: null,
         isAuthenticated: false,
         isLoading: false,
-        error: null
+        error: null,
       };
+
     case 'UPDATE_USER':
       return {
         ...state,
-        user: { ...state.user, ...action.payload }
+        user: { ...state.user, ...action.payload },
       };
+
     case 'CLEAR_ERROR':
-      return {
-        ...state,
-        error: null
-      };
+      return { ...state, error: null };
+
     default:
       return state;
   }
 };
 
-// Configure axios defaults to use Vite proxy
+// Axios defaults
 axios.defaults.baseURL = '/api';
 axios.defaults.withCredentials = true;
 
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Set up axios interceptor for token
+  // Initialize authentication
   useEffect(() => {
     const initializeAuth = async () => {
       const token = Cookies.get('token') || localStorage.getItem('token');
-      
+
       if (token) {
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        
-        // Fetch current user data to ensure role is up to date
         try {
           const response = await axios.get('/auth/me');
           const { user } = response.data;
-          
-          dispatch({
-            type: 'AUTH_SUCCESS',
-            payload: { token, user }
-          });
+
+          dispatch({ type: 'AUTH_SUCCESS', payload: { token, user } });
         } catch (error) {
           console.error('Auth initialization error:', error);
-          // Token is invalid, clear it
+
           Cookies.remove('token');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           delete axios.defaults.headers.common['Authorization'];
+
           dispatch({ type: 'AUTH_FAILURE', payload: null });
         }
       } else {
@@ -101,35 +96,26 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    // Add a small delay to prevent rapid requests
     const timeoutId = setTimeout(initializeAuth, 100);
     return () => clearTimeout(timeoutId);
   }, []);
 
-  // Login function
+  // --- Auth Actions ---
+
   const login = async (email, password) => {
     try {
       dispatch({ type: 'AUTH_START' });
 
-      const response = await axios.post('/auth/login', {
-        email,
-        password
-      });
-
+      const response = await axios.post('/auth/login', { email, password });
       const { user, token } = response.data;
 
-      // Store token and user data
       Cookies.set('token', token, { expires: 7, secure: true, sameSite: 'strict' });
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
 
-      // Set axios header
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      dispatch({
-        type: 'AUTH_SUCCESS',
-        payload: { user, token }
-      });
+      dispatch({ type: 'AUTH_SUCCESS', payload: { user, token } });
 
       toast.success('Login successful!');
       return { success: true };
@@ -141,15 +127,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Register function - backend requires email verification, does not return token/user
   const register = async (userData) => {
     try {
       dispatch({ type: 'AUTH_START' });
       const response = await axios.post('/auth/register', userData);
       const message = response.data?.message || 'Registered. Please verify your email.';
+
+      // Registration does not authenticate the user
       dispatch({ type: 'AUTH_FAILURE', payload: null });
+
       toast.success(message);
-      return { success: true };
+      return { success: true, message };
     } catch (error) {
       const message = error.response?.data?.message || 'Registration failed';
       dispatch({ type: 'AUTH_FAILURE', payload: message });
@@ -158,39 +146,47 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout function
+  const verifyEmail = async (token) => {
+    try {
+      const response = await axios.post(`/auth/verify-email/${token}`);
+      const message = response.data?.message || 'Email verified successfully!';
+
+      dispatch({ type: 'CLEAR_ERROR' });
+
+      toast.success(message);
+      return { success: true, message };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Email verification failed';
+      dispatch({ type: 'AUTH_FAILURE', payload: message });
+      toast.error(message);
+      return { success: false, error: message };
+    }
+  };
+
   const logout = async () => {
     try {
       await axios.post('/auth/logout');
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Clear stored data
       Cookies.remove('token');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      
-      // Remove axios header
       delete axios.defaults.headers.common['Authorization'];
-      
+
       dispatch({ type: 'LOGOUT' });
       toast.success('Logged out successfully');
     }
   };
 
-  // Update user profile
   const updateProfile = async (userData) => {
     try {
       const response = await axios.put('/auth/profile', userData);
       const { user } = response.data;
 
-      // Update stored user data
       localStorage.setItem('user', JSON.stringify(user));
 
-      dispatch({
-        type: 'UPDATE_USER',
-        payload: user
-      });
+      dispatch({ type: 'UPDATE_USER', payload: user });
 
       toast.success('Profile updated successfully!');
       return { success: true };
@@ -201,13 +197,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Change password
   const changePassword = async (currentPassword, newPassword) => {
     try {
-      await axios.put('/auth/change-password', {
-        currentPassword,
-        newPassword
-      });
+      await axios.put('/auth/change-password', { currentPassword, newPassword });
 
       toast.success('Password changed successfully!');
       return { success: true };
@@ -218,19 +210,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Get current user
   const getCurrentUser = async () => {
     try {
       const response = await axios.get('/auth/me');
       const { user } = response.data;
 
-      // Update stored user data
       localStorage.setItem('user', JSON.stringify(user));
 
-      dispatch({
-        type: 'UPDATE_USER',
-        payload: user
-      });
+      dispatch({ type: 'UPDATE_USER', payload: user });
 
       return { success: true, user };
     } catch (error) {
@@ -239,29 +226,27 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Clear error
   const clearError = () => {
     dispatch({ type: 'CLEAR_ERROR' });
   };
 
+  // Context value
   const value = {
     ...state,
     login,
     register,
+    verifyEmail,
     logout,
     updateProfile,
     changePassword,
     getCurrentUser,
-    clearError
+    clearError,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// Custom hook
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

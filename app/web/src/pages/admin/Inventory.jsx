@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useForm } from 'react-hook-form';
 import { Helmet } from 'react-helmet-async';
+import Logo from '/SportifyLogo.png';
 import {
   Package,
   AlertTriangle,
@@ -17,7 +18,9 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { Line, Bar } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -41,27 +44,83 @@ ChartJS.register(
   Legend
 );
 
-// Loader Component
+// -------------------
+// Loader
+// -------------------
 const LoadingSpinner = ({ size = 'md' }) => (
   <div className={`spinner ${size}`}>Loading...</div>
 );
 
-// Stock History Component
-const StockMovementHistory = ({ productId, productName }) => (
-  <div>
-    <p>Showing stock movements for {productName} (ID: {productId})</p>
-    {/* You can implement a table or chart for stock movements here */}
-  </div>
-);
+// -------------------
+// Stock Movement Modal
+// -------------------
+const StockHistoryModal = ({ product, closeModal }) => {
+  if (!product) return null;
+
+  // Example: Use product.stockHistory or generate from inventory data
+  const history = product.stockHistory || product.history || []; 
+  const chartData = {
+    labels: history.map(h => new Date(h.date).toLocaleDateString()),
+    datasets: [
+      {
+        label: "Stock Quantity",
+        data: history.map(h => h.quantity),
+        borderColor: "#3b82f6",
+        backgroundColor: "#60a5fa",
+      },
+    ],
+  };
+
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+    doc.text(`Stock Movement History - ${product.product.name}`, 14, 16);
+
+    autoTable(doc, {
+      startY: 20,
+      head: [["Date", "Quantity"]],
+      body: history.map(h => [new Date(h.date).toLocaleDateString(), h.quantity])
+    });
+
+    doc.save(`${product.product.name}_stock_history.pdf`);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-start justify-center z-50 overflow-y-auto py-10">
+      <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-3xl p-6 relative">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Stock Movement History</h3>
+          <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        {history.length > 0 ? (
+          <>
+            <div className="mb-4">
+              <Line data={chartData} />
+            </div>
+            <button
+              onClick={downloadPDF}
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center"
+            >
+              <Download className="h-4 w-4 mr-1" /> Download PDF
+            </button>
+          </>
+        ) : (
+          <p>No stock movement history available.</p>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // -------------------
-// Admin Inventory
+// Main AdminInventory
 // -------------------
 const AdminInventory = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showStockModal, setShowStockModal] = useState(false);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [stockAction, setStockAction] = useState('add');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -181,7 +240,7 @@ const AdminInventory = () => {
   };
 
   // -------------------
-  // Reports Generation
+  // Reports
   // -------------------
   const generateCSVReport = async () => {
     try {
@@ -198,23 +257,57 @@ const AdminInventory = () => {
     }
   };
 
-  const generatePDFReport = async () => {
-    try {
-      const res = await axios.get('/inventory/reports/pdf', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'inventory_report.pdf');
-      document.body.appendChild(link);
-      link.click();
-      toast.success('PDF report downloaded!');
-    } catch (error) {
-      toast.error('Failed to generate PDF report');
-    }
-  };
+  // Frontend PDF for stock history
+const generatePDFReport = () => {
+  if (!inventoryData?.inventory?.length) {
+    toast.error("No inventory data available to generate report");
+    return;
+  }
+
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+
+  // Add logo (x, y, width, height)
+  const imgProps = doc.getImageProperties(Logo);
+  const logoWidth = 40;
+  const logoHeight = (imgProps.height * logoWidth) / imgProps.width;
+  doc.addImage(Logo, "PNG", 14, 10, logoWidth, logoHeight);
+
+  // Report title
+  doc.text("Inventory Stock Report", 70, 25);
+
+  // Table columns and rows
+  const tableColumn = ["Product", "SKU", "Current Stock", "Min Stock", "Status"];
+  const tableRows = inventoryData.inventory.map(item => [
+    item.product.name,
+    item.product.sku,
+    item.currentStock,
+    item.minStockLevel,
+    getStockStatusText(item.status)
+  ]);
+
+  autoTable(doc, {
+    startY: 35,
+    head: [tableColumn],
+    body: tableRows,
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+    alternateRowStyles: { fillColor: [240, 240, 240] },
+  });
+
+  // Add signature and date at the bottom
+  const finalY = doc.lastAutoTable.finalY || 50;
+  doc.setFontSize(12);
+  doc.text("Signature: _______________________", 14, finalY + 20);
+  const today = new Date();
+  doc.text(`Date: ${today.toLocaleDateString()}`, 150, finalY + 20);
+
+  doc.save("inventory_stock_report.pdf");
+  toast.success("PDF report generated successfully!");
+};
 
   // -------------------
-  // Main Render
+  // Render
   // -------------------
   return (
     <>
@@ -248,48 +341,25 @@ const AdminInventory = () => {
           <div className="bg-white rounded-lg shadow-sm mb-8">
             <div className="border-b border-gray-200">
               <nav className="-mb-px flex space-x-8 px-6">
-                {['overview', 'products', 'alerts', 'analytics', 'reports'].map((tabId) => (
+                {['overview', 'products', 'alerts', 'reports'].map((tabId) => (
                   <TabButton key={tabId} id={tabId} activeTab={activeTab} setActiveTab={setActiveTab} />
                 ))}
               </nav>
             </div>
             <div className="p-6">
-              {activeTab === 'overview' && <OverviewTab summary={summary} lowStockProducts={lowStockProducts} handleStockAction={handleStockAction} />}
-              {activeTab === 'products' && <ProductsTab inventoryData={inventoryData} handleStockAction={handleStockAction} searchQuery={searchQuery} setSearchQuery={setSearchQuery} filterStatus={filterStatus} setFilterStatus={setFilterStatus} getStockStatusColor={getStockStatusColor} getStockStatusText={getStockStatusText} />}
+              {activeTab === 'overview' && <OverviewTab summary={summary} lowStockProducts={lowStockProducts} stockTrendData={stockTrendData} handleStockAction={handleStockAction} />}
+              {activeTab === 'products' && <ProductsTab inventoryData={inventoryData} handleStockAction={handleStockAction} searchQuery={searchQuery} setSearchQuery={setSearchQuery} filterStatus={filterStatus} setFilterStatus={setFilterStatus} getStockStatusColor={getStockStatusColor} getStockStatusText={getStockStatusText} setSelectedProduct={setSelectedProduct} setShowStockModal={setShowStockModal} />}
               {activeTab === 'alerts' && <AlertsTab lowStockProducts={lowStockProducts} handleStockAction={handleStockAction} />}
               {activeTab === 'analytics' && <AnalyticsTab stockTrendData={stockTrendData} />}
               {activeTab === 'reports' && <ReportsTab generateCSVReport={generateCSVReport} generatePDFReport={generatePDFReport} />}
             </div>
           </div>
+
+          {/* Stock Modal */}
+          {showStockModal && selectedProduct && (
+            <StockHistoryModal product={selectedProduct} closeModal={() => setShowStockModal(false)} />
+          )}
         </div>
-
-        {/* Stock Modal */}
-        {showStockModal && selectedProduct && (
-          <StockModal
-            selectedProduct={selectedProduct}
-            stockAction={stockAction}
-            register={register}
-            errors={errors}
-            handleSubmit={handleSubmit}
-            onStockSubmit={onStockSubmit}
-            setStockValue={setStockValue}
-            closeModal={() => setShowStockModal(false)}
-            isLoading={stockMutation.isLoading}
-          />
-        )}
-
-        {/* Stock History Modal */}
-        {showHistoryModal && selectedProduct && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-10 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-medium text-gray-900">Stock Movement History</h3>
-                <button onClick={() => setShowHistoryModal(false)} className="text-gray-400 hover:text-gray-600"><X className="h-6 w-6" /></button>
-              </div>
-              <StockMovementHistory productId={selectedProduct.product._id} productName={selectedProduct.product.name} />
-            </div>
-          </div>
-        )}
       </div>
     </>
   );
@@ -315,7 +385,6 @@ const TabButton = ({ id, activeTab, setActiveTab }) => {
     overview: 'Overview',
     products: 'All Products',
     alerts: 'Low Stock Alerts',
-    analytics: 'Analytics & Forecasting',
     reports: 'Reports'
   };
   const icons = { overview: BarChart3, products: Package, alerts: AlertTriangle, analytics: TrendingUp, reports: Download };
@@ -323,9 +392,7 @@ const TabButton = ({ id, activeTab, setActiveTab }) => {
   return (
     <button
       onClick={() => setActiveTab(id)}
-      className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
-        activeTab === id ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-      }`}
+      className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center ${activeTab === id ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
     >
       <Icon className="h-4 w-4 mr-2" /> {labels[id]}
     </button>
@@ -333,16 +400,15 @@ const TabButton = ({ id, activeTab, setActiveTab }) => {
 };
 
 // -------------------
-// Tabs
+// Overview Tab
 // -------------------
-const OverviewTab = ({ summary, lowStockProducts, handleStockAction }) => (
+const OverviewTab = ({ summary, lowStockProducts, stockTrendData, handleStockAction }) => (
   <div className="space-y-6">
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-4">
-      <SummaryCard title="Total Products" value={summary?.totalProducts || 0} icon={<Package className="h-6 w-6 text-blue-600" />} color="bg-blue-100" />
-      <SummaryCard title="Total Stock" value={summary?.totalStock || 0} icon={<TrendingUp className="h-6 w-6 text-green-600" />} color="bg-green-100" />
-      <SummaryCard title="Low Stock" value={summary?.lowStockCount || 0} icon={<AlertTriangle className="h-6 w-6 text-yellow-600" />} color="bg-yellow-100" />
-      <SummaryCard title="Out of Stock" value={summary?.outOfStockCount || 0} icon={<Package className="h-6 w-6 text-red-600" />} color="bg-red-100" />
+    <div className="bg-white p-4 rounded shadow">
+      <h3 className="text-lg font-semibold mb-4">Stock Movements</h3>
+      <Line data={stockTrendData} />
     </div>
+
     {lowStockProducts?.length > 0 && (
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Low Stock Alerts</h3>
@@ -366,14 +432,6 @@ const OverviewTab = ({ summary, lowStockProducts, handleStockAction }) => (
   </div>
 );
 
-const AnalyticsTab = ({ stockTrendData }) => (
-  <div className="space-y-6">
-    <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock Trends</h3>
-    <div className="bg-white p-4 rounded shadow">
-      <Line data={stockTrendData} />
-    </div>
-  </div>
-);
 // -------------------
 // Products Tab
 // -------------------
@@ -385,7 +443,9 @@ const ProductsTab = ({
   filterStatus,
   setFilterStatus,
   getStockStatusColor,
-  getStockStatusText
+  getStockStatusText,
+  setSelectedProduct,
+  setShowStockModal
 }) => (
   <div className="space-y-4">
     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
@@ -416,7 +476,6 @@ const ProductsTab = ({
             <th className="px-4 py-2">Current Stock</th>
             <th className="px-4 py-2">Min Stock</th>
             <th className="px-4 py-2">Status</th>
-            <th className="px-4 py-2">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -429,30 +488,23 @@ const ProductsTab = ({
               <td className={`px-4 py-2 font-semibold ${getStockStatusColor(item.status)}`}>
                 {getStockStatusText(item.status)}
               </td>
-              <td className="px-4 py-2 space-x-2">
-                <button
-                  onClick={() => handleStockAction(item, 'add')}
-                  className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 text-sm"
-                >
-                  Add
-                </button>
-                <button
-                  onClick={() => handleStockAction(item, 'remove')}
-                  className="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 text-sm"
-                >
-                  Remove
-                </button>
-                <button
-                  onClick={() => handleStockAction(item, 'adjust')}
-                  className="bg-gray-600 text-white px-2 py-1 rounded hover:bg-gray-700 text-sm"
-                >
-                  Adjust
-                </button>
-              </td>
+             
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  </div>
+);
+
+// -------------------
+// Analytics Tab
+// -------------------
+const AnalyticsTab = ({ stockTrendData }) => (
+  <div className="space-y-6">
+    <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock Trends</h3>
+    <div className="bg-white p-4 rounded shadow">
+      <Line data={stockTrendData} />
     </div>
   </div>
 );
@@ -492,6 +544,9 @@ const AlertsTab = ({ lowStockProducts, handleStockAction }) => (
   </div>
 );
 
+// -------------------
+// Reports Tab
+// -------------------
 const ReportsTab = ({ generateCSVReport, generatePDFReport }) => (
   <div className="space-y-4">
     <h3 className="text-lg font-semibold text-gray-900 mb-4">Generate Inventory Reports</h3>

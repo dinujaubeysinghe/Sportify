@@ -80,31 +80,54 @@ exports.createProduct = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: errors.array(),
+      });
+    }
+    console.log('req',req.body);
+    const productData = { ...req.body };   // ✅ FIXED
+
+    // Clean up images field if frontend sends it as a string
+    if (typeof productData.images === "string") {
+      delete productData.images;
     }
 
-    const productData = req.body;
+    // Handle uploaded images
     if (req.files && req.files.length > 0) {
       productData.images = req.files.map((file, index) => ({
         url: `/uploads/products/${file.filename}`,
         alt: productData.name,
-        isPrimary: index === 0
+        isPrimary: index === 0,
       }));
     }
+
     productData.supplier = req.user._id;
 
-    const existing = await Product.findOne({ sku: productData.sku.toUpperCase() });
+    // Check for duplicate SKU
+    const existing = await Product.findOne({
+      sku: productData.sku.toUpperCase(),
+    });
     if (existing) {
-      return res.status(400).json({ success: false, message: 'Product with this SKU already exists' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Product with this SKU already exists" });
     }
 
     const product = await Product.create(productData);
-    res.status(201).json({ success: true, message: 'Product created successfully', product });
+    res.status(201).json({
+      success: true,
+      message: "Product created successfully",
+      product,
+    });
   } catch (error) {
-    console.error('Create product error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Create product error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
+
 
 // ===================== UPDATE PRODUCT =====================
 exports.updateProduct = async (req, res) => {
@@ -160,8 +183,7 @@ exports.deleteProduct = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this product' });
     }
 
-    product.isActive = false;
-    await product.save();
+    await Product.findByIdAndDelete(req.params.id);
 
     res.json({ success: true, message: 'Product deleted successfully' });
   } catch (error) {

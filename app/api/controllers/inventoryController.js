@@ -247,8 +247,9 @@ exports.getSupplierStockMovements = async (req, res) => {
 // ----------------------
 exports.addStock = async (req, res) => {
   try {
+
     const errors = validationResult(req);
-    console.log('error: ', errors);
+    console.log('error add stock: ', errors);
     if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
 
     const { quantity, reason, cost, notes } = req.body;
@@ -268,8 +269,11 @@ exports.addStock = async (req, res) => {
     }
 
     let inventory = await Inventory.findOne({ product: productId });
-    if (!inventory) {
+    
+    if (!inventory && reason != 'Adding New Product') {
       inventory = await Inventory.create({ product: productId, currentStock: product.stock, minStockLevel: product.minStockLevel || 5 });
+    }else if(!inventory){
+      inventory = await Inventory.create({ product: productId, currentStock: 0, minStockLevel: product.minStockLevel || 5 });
     }
 
     await inventory.addStock(qty, reason, req.user._id, { cost, notes });
@@ -294,7 +298,7 @@ exports.addStock = async (req, res) => {
 exports.removeStock = async (req, res) => {
   try {
     const errors = validationResult(req);
-        console.log('error: ', errors);
+        console.log('error remove stock: ', errors);
 
     if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
 
@@ -430,3 +434,34 @@ exports.releaseReservedStock = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+
+exports.deleteStock = async (req, res) => {
+  try {
+
+    const productId  = req.params.id;
+    console.log('productId', productId);
+
+    const supplierId = req.user.role === 'supplier' ? req.user._id : req.query.supplierId;
+    if (!supplierId) return res.status(400).json({ success: false, message: 'supplierId is required' });
+
+    const inventory = await Inventory.findOne({ product: productId });
+    if (!inventory) return res.status(404).json({ success: false, message: 'Inventory not found' });
+
+    const product = await Product.findById(productId);
+    console.log('supplierId', product.supplier, '  ', supplierId);
+
+    
+    if(!product.supplier.equals(supplierId)){
+      return res.status(403).json({ success: false, message: 'Only supplier can delete own products' });
+    }
+    
+    await Inventory.findOneAndDelete({product:productId});
+
+    res.json({ success: true, message: 'Product deleted' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+

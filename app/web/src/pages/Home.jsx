@@ -52,13 +52,21 @@ const Home = () => {
   );
 
   // Fetch categories
-  const { data: categories, isLoading: categoriesLoading } = useQuery(
-    'categories',
-    async () => {
-      const response = await axios.get('/categories');
-      return response.data.categories;
+const { data: categoriesData = [], isLoading: categoriesLoading } = useQuery(
+  'categories',
+  async () => {
+    try {
+      const response = await axios.get(`/categories`);
+      return Array.isArray(response.data.categories) ? response.data.categories : [];
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
+      return [];
     }
-  );
+  }
+);
+
+
+
 
   const features = [
     {
@@ -138,9 +146,8 @@ const Home = () => {
               <div className="flex justify-center"><LoadingSpinner /></div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                {categories?.map((cat) => (
-                  <div 
-                    key={cat._id} 
+                {Array.isArray(categoriesData) && categoriesData.map((cat) => (
+                  <div key={cat._id}
                     className="bg-white shadow rounded-lg p-4 text-center hover:shadow-md transition"
                   >
                     {cat.image?.url ? (

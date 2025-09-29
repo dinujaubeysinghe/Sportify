@@ -33,11 +33,12 @@ const AdminUsers = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
-    role: 'customer',
+    role: 'staff',
     phone: '',
     isActive: true
   });
@@ -83,7 +84,7 @@ const AdminUsers = () => {
           firstName: '',
           lastName: '',
           email: '',
-          role: 'customer',
+          role: 'staff',
           phone: '',
           isActive: true
         });
@@ -96,7 +97,6 @@ const AdminUsers = () => {
   );
 
   const users = usersData?.users || [];
-  console.log(users);
   // Filter users
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -130,17 +130,92 @@ const AdminUsers = () => {
     });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (formData.role === 'staff') {
-      createStaffMutation.mutate({
-        ...formData,
-        employeeId: `EMP${Date.now()}`,
-        department: 'General',
-        hireDate: new Date().toISOString()
-      });
+// Handle form input changes
+const handleChange = (e) => {
+  const { name, value, type, checked } = e.target;
+
+  const updatedValue = type === "checkbox" ? checked : value;
+
+  setFormData((prev) => ({
+    ...prev,
+    [name]: updatedValue,
+  }));
+
+  // Real-time validation
+  setErrors((prev) => {
+    const newErrors = { ...prev };
+
+    switch (name) {
+      case "firstName":
+        if (!updatedValue.trim()) newErrors.firstName = "First name is required";
+        else delete newErrors.firstName;
+        break;
+
+      case "lastName":
+        if (!updatedValue.trim()) newErrors.lastName = "Last name is required";
+        else delete newErrors.lastName;
+        break;
+
+      case "email":
+        if (!/\S+@\S+\.\S+/.test(updatedValue)) newErrors.email = "Invalid email address";
+        else delete newErrors.email;
+        break;
+
+      case "password":
+        if (!updatedValue || updatedValue.length < 6) newErrors.password = "Password must be at least 6 characters";
+        else delete newErrors.password;
+        break;
+
+      case "phone":
+        if (!/^\d{10}$/.test(updatedValue)) newErrors.phone = "Phone number must be exactly 10 digits";
+        else delete newErrors.phone;
+        break;
+
+      case "employeeId":
+        if (!updatedValue.trim()) newErrors.employeeId = "Employee ID is required";
+        else delete newErrors.employeeId;
+        break;
+
+      case "department":
+        if (!updatedValue.trim()) newErrors.department = "Department is required";
+        else delete newErrors.department;
+        break;
+
+      case "hireDate":
+        if (!updatedValue) newErrors.hireDate = "Hire date is required";
+        else if (new Date(updatedValue) > new Date()) newErrors.hireDate = "Hire date cannot be in the future";
+        else delete newErrors.hireDate;
+        break;
+
+      default:
+        break;
     }
-  };
+
+    return newErrors;
+  });
+};
+
+
+// Submit handler
+const handleSubmit = (e) => {
+  e.preventDefault();
+
+  // Stop if there are errors
+  if (Object.keys(errors).length > 0) {
+    toast.error("Please fix the errors before submitting");
+    return;
+  }
+
+  // If valid, submit staff creation
+  if (formData.role === "staff") {
+    createStaffMutation.mutate({
+      ...formData,
+      role: "staff",
+    });
+  }
+};
+
+
 
 // Generate PDF Report
 const generatePDFReport = () => {
@@ -529,77 +604,116 @@ const registrationData = {
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                    <button
+            type="button"
+            onClick={() => setShowAddModal(false)}
+            className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+          >
+            ✕
+          </button>
             <h2 className="text-xl font-bold text-gray-900 mb-4">Add New Staff Member</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={createStaffMutation.isLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  {createStaffMutation.isLoading ? 'Creating...' : 'Create Staff'}
-                </button>
-              </div>
+            <form onSubmit={handleSubmit} className="space-y-2">
+              <input
+                type="text"
+                name="firstName"
+                placeholder="First Name"
+                value={formData.firstName}
+                onChange={handleChange}
+                className={`w-full p-2 border rounded ${errors.firstName ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.firstName && <p className="text-red-500 text-sm">{errors.firstName}</p>}
+
+              <input
+                type="text"
+                name="lastName"
+                placeholder="Last Name"
+                value={formData.lastName}
+                onChange={handleChange}
+                className={`w-full p-2 border rounded ${errors.lastName ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.lastName && <p className="text-red-500 text-sm">{errors.lastName}</p>}
+
+              <input
+                type="email"
+                name="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={handleChange}
+                className={`w-full p-2 border rounded ${errors.email ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
+
+              <input
+                type="password"
+                name="password"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleChange}
+                className={`w-full p-2 border rounded ${errors.password ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
+
+              <input
+                type="number"
+                name="phone"
+                placeholder="Phone (10 digits)"
+                value={formData.phone}
+                onChange={handleChange}
+                maxLength={10}
+                pattern="\d{10}"
+                className={`w-full p-2 border rounded ${errors.phone ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.phone && <p className="text-red-500 text-sm">{errors.phone}</p>}
+
+              <input
+                type="text"
+                name="employeeId"
+                placeholder="Employee ID"
+                value={formData.employeeId}
+                onChange={handleChange}
+                className={`w-full p-2 border rounded ${errors.employeeId ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.employeeId && <p className="text-red-500 text-sm">{errors.employeeId}</p>}
+
+              <input
+                type="text"
+                name="department"
+                placeholder="Department"
+                value={formData.department}
+                onChange={handleChange}
+                className={`w-full p-2 border rounded ${errors.department ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.department && <p className="text-red-500 text-sm">{errors.department}</p>}
+
+              <input
+                type="date"
+                name="hireDate"
+                value={formData.hireDate}
+                onChange={handleChange}
+                max={new Date().toISOString().split("T")[0]}
+                className={`w-full p-2 border rounded ${errors.hireDate ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.hireDate && <p className="text-red-500 text-sm">{errors.hireDate}</p>}
+
+              <button
+                type="submit"
+                className="w-full bg-blue-600 text-white p-2 rounded mt-2"
+              >
+                Add Staff
+              </button>
             </form>
           </div>
         </div>
       )}
+
     </>
   );
 };

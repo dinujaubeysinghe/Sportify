@@ -24,6 +24,8 @@ import Profile from './pages/Profile';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import SystemTest from './pages/SystemTest';
+import About from './pages/about';
+
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -56,6 +58,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import AdminRoute from './components/auth/AdminRoute';
 import SupplierRoute from './components/auth/SupplierRoute';
 import StaffRoute from './components/auth/StaffRoute';
+import VerifyEmail from './pages/VerifyEmail';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -81,10 +84,12 @@ function App() {
                     {/* Public Routes */}
                     <Route path="/" element={<Home />} />
                     <Route path="/contact" element={<Contact/>} />
+                    <Route path="/about" element={<About/>} />
                     <Route path="/products" element={<Products />} />
                     <Route path="/products/:id" element={<ProductDetail />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
+                    <Route path="/verify-email/:token" element={<VerifyEmail/>} />
                     
                     {/* Protected Routes */}
                     <Route path="/cart" element={

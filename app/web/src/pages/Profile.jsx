@@ -24,7 +24,7 @@ import Orders from './Orders';
 
 
 const Profile = () => {
-  const { user, updateProfile, isLoading } = useAuth();
+  const { user, updateProfile, isLoading,changePassword } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   
@@ -95,38 +95,38 @@ const Profile = () => {
     }
   };
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('New passwords do not match');
-      return;
-    }
+const handleChangePassword = async (e) => {
+  e.preventDefault();
 
-    if (passwordData.newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters long');
-      return;
-    }
+  const { currentPassword, newPassword, confirmPassword } = passwordData;
 
-    setIsUpdating(true);
-    try {
-      // In a real app, you would call your change password API here
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success('Password changed successfully');
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (error) {
-      toast.error('Failed to change password');
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  if (newPassword !== confirmPassword) {
+    toast.error('New passwords do not match');
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    toast.error('Password must be at least 6 characters long');
+    return;
+  }
+
+  setIsUpdating(true);
+  try {
+    const res = await changePassword(currentPassword,newPassword);
+
+    toast.success(res.data.message || "Password changed successfully");
+    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  } catch (error) {
+    toast.error(response?.data?.message|| "Failed to change password");
+  } finally {
+    setIsUpdating(false);
+  }
+};
+
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'security', label: 'Security', icon: Shield },
-    { id: 'orders', label: 'Orders', icon: ShoppingBag },
-    { id: 'wishlist', label: 'Wishlist', icon: Heart },
-    { id: 'settings', label: 'Settings', icon: Settings }
   ];
 
   if (isLoading) {
@@ -278,9 +278,19 @@ const Profile = () => {
                           Phone
                         </label>
                         <input
-                          type="tel"
+                          type="number"
                           value={profileData.phone}
-                          onChange={(e) => handleProfileChange('phone', e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            // ✅ only allow up to 10 digits
+                            if (val.length <= 10) {
+                              handleProfileChange('phone', val);
+                            }
+                          }}
+                          onInput={(e) => {
+                            // ✅ prevent typing 'e', '+', '-', '.', etc.
+                            e.target.value = e.target.value.replace(/\D/g, '');
+                          }}
                           disabled={!isEditing}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                         />
@@ -343,9 +353,7 @@ const Profile = () => {
                           disabled={!isEditing}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                         >
-                          <option value="United States">United States</option>
-                          <option value="Canada">Canada</option>
-                          <option value="United Kingdom">United Kingdom</option>
+                          <option value="Sri Lanka">Sri Lanka</option>
                         </select>
                       </div>
                       <div className="md:col-span-2">

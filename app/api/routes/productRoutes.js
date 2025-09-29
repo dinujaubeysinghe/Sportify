@@ -7,6 +7,8 @@ const {
 } = require('../controllers/ProductController');
 const multer = require('multer');
 const path = require('path');
+const upload = multer({ dest: 'uploads/products/' });
+
 
 const router = express.Router();
 
@@ -18,11 +20,7 @@ const storage = multer.diskStorage({
     cb(null, file.fieldname + '-' + unique + path.extname(file.originalname));
   }
 });
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => file.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Only images allowed'), false)
-});
+
 
 // ========== Routes ==========
 router.get('/', optionalAuth, [

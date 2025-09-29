@@ -36,6 +36,7 @@ const SupplierInventory = () => {
     'supplier-inventory-summary',
     async () => {
       const response = await axios.get('/inventory/supplier/summary');
+      console.log('summ: ', response);
       return response.data.summary;
     }
   );
