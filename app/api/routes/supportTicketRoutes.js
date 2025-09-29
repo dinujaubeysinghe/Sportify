@@ -7,7 +7,8 @@ const {
   updateSupportTicket,
   addMessage,
   getSupportTicketStats,
-  deleteSupportTicket
+  deleteSupportTicket,
+  getStaffMembers
 } = require('../controllers/supportTicketController');
 const { protect, authorize } = require('../middlewares/auth');
 
@@ -19,6 +20,11 @@ router.use(authorize('staff', 'admin'));
 // @desc    Get support ticket statistics
 // @access  Staff/Admin
 router.get('/stats', getSupportTicketStats);
+
+// @route   GET /api/support-tickets/staff
+// @desc    Get all staff members for assignment
+// @access  Staff/Admin
+router.get('/staff', getStaffMembers);
 
 // @route   GET /api/support-tickets
 // @desc    Get all support tickets

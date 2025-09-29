@@ -1,6 +1,7 @@
 const SupportTicket = require('../models/SupportTicket');
 const User = require('../models/User');
 const Order = require('../models/Order');
+const crypto = require('crypto');
 
 // @desc    Get all support tickets
 // @route   GET /api/support-tickets
@@ -281,6 +282,25 @@ exports.getSupportTicketStats = async (req, res) => {
   }
 };
 
+// @desc    Get all staff members for assignment
+// @route   GET /api/support-tickets/staff
+// @access  Staff/Admin
+exports.getStaffMembers = async (req, res) => {
+  try {
+    const staffMembers = await User.find({ role: 'staff' })
+      .select('firstName lastName email')
+      .sort({ firstName: 1 });
+
+    res.json({
+      success: true,
+      staff: staffMembers
+    });
+  } catch (error) {
+    console.error('Get staff members error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // @desc    Delete support ticket
 // @route   DELETE /api/support-tickets/:id
 // @access  Admin only
@@ -299,6 +319,61 @@ exports.deleteSupportTicket = async (req, res) => {
     });
   } catch (error) {
     console.error('Delete support ticket error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Public contact submission -> creates a support ticket
+// @route   POST /api/public/contact
+// @access  Public
+exports.publicCreateTicket = async (req, res) => {
+  try {
+    const { name, email, subject, message, priority = 'medium', category = 'general' } = req.body;
+
+    if (!name || !email || !subject || !message) {
+      return res.status(400).json({ success: false, message: 'Name, email, subject and message are required' });
+    }
+
+    // Find or create a user for this email so the ticket has a customer
+    let user = await User.findOne({ email });
+    if (!user) {
+      const [firstName, ...rest] = name.trim().split(' ');
+      const lastName = rest.join(' ') || 'User';
+      const tempPassword = crypto.randomBytes(12).toString('hex');
+
+      user = await User.create({
+        firstName: firstName || 'User',
+        lastName,
+        email,
+        password: tempPassword,
+        role: 'customer',
+        isVerified: true
+      });
+    }
+
+    const ticket = new SupportTicket({
+      subject,
+      description: message,
+      customer: user._id,
+      priority,
+      category,
+      messages: [
+        {
+          sender: name,
+          message,
+          isCustomer: true
+        }
+      ]
+    });
+    await ticket.save();
+
+    await ticket.populate([
+      { path: 'customer', select: 'firstName lastName email phone' }
+    ]);
+
+    return res.status(201).json({ success: true, message: 'Support request submitted', ticket });
+  } catch (error) {
+    console.error('Public contact ticket error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

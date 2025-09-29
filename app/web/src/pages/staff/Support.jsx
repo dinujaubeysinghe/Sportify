@@ -31,6 +31,18 @@ const StaffSupport = () => {
     priority: 'medium',
     category: 'general'
   });
+  const [staffMembers, setStaffMembers] = useState([]);
+
+  // Load staff members
+  const loadStaffMembers = async () => {
+    try {
+      const response = await axios.get('/support-tickets/staff');
+      setStaffMembers(response.data.staff);
+    } catch (error) {
+      console.error('Error loading staff members:', error);
+      toast.error('Failed to load staff members');
+    }
+  };
 
   // Load tickets data
   const loadTickets = async () => {
@@ -92,6 +104,7 @@ const StaffSupport = () => {
 
   useEffect(() => {
     loadTickets();
+    loadStaffMembers();
   }, []);
 
   // Filter tickets
@@ -183,6 +196,33 @@ const StaffSupport = () => {
     } catch (error) {
       console.error('Error updating ticket status:', error);
       toast.error('Failed to update ticket status');
+    }
+  };
+
+  const handleAssignTicket = async (ticketId, staffId) => {
+    try {
+      await axios.put(`/support-tickets/${ticketId}`, { assignedTo: staffId });
+      
+      const assignedStaff = staffMembers.find(staff => staff._id === staffId);
+      
+      setTickets(tickets.map(ticket =>
+        ticket._id === ticketId
+          ? { ...ticket, assignedTo: assignedStaff, updatedAt: new Date().toISOString() }
+          : ticket
+      ));
+      
+      if (selectedTicket && selectedTicket._id === ticketId) {
+        setSelectedTicket({
+          ...selectedTicket,
+          assignedTo: assignedStaff,
+          updatedAt: new Date().toISOString()
+        });
+      }
+      
+      toast.success('Ticket assigned successfully!');
+    } catch (error) {
+      console.error('Error assigning ticket:', error);
+      toast.error('Failed to assign ticket');
     }
   };
 
@@ -562,6 +602,23 @@ const StaffSupport = () => {
                     </div>
                   </div>
 
+                  {/* Assignment */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Assign To</label>
+                    <select
+                      value={selectedTicket.assignedTo?._id || ''}
+                      onChange={(e) => handleAssignTicket(selectedTicket._id, e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Unassigned</option>
+                      {staffMembers.map((staff) => (
+                        <option key={staff._id} value={staff._id}>
+                          {staff.firstName} {staff.lastName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* Status Update */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Update Status</label>
@@ -580,7 +637,7 @@ const StaffSupport = () => {
                         </button>
                       ))}
                     </div>
-          </div>
+                  </div>
 
                   {/* Actions */}
                   <div className="flex justify-end space-x-3 pt-4 border-t">

@@ -16,6 +16,10 @@ router.use('/payroll', require('./routes/payrollRoutes'));
 router.use('/dashboard', require('./routes/dashboardRoutes'));
 router.use('/support-tickets', require('./routes/supportTicketRoutes'));
 
+// Public routes (no auth)
+const { publicCreateTicket } = require('./controllers/supportTicketController');
+router.post('/public/contact', publicCreateTicket);
+
 // Health check
 router.get('/health', (req, res) => {
   res.json({ message: 'Sportify API is running!', timestamp: new Date().toISOString() });

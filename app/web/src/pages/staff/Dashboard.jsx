@@ -8,7 +8,10 @@ import {
   Truck,
   UserPlus,
   Calendar,
-  Users
+  Users,
+  AlertCircle,
+  Eye,
+  CheckCircle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -20,6 +23,7 @@ const StaffDashboard = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
+  const [supportTickets, setSupportTickets] = useState([]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-LK', {
@@ -34,6 +38,38 @@ const StaffDashboard = () => {
         // Load dashboard stats
         const statsResponse = await axios.get('/dashboard/stats');
         const statsData = statsResponse.data.stats;
+
+        // Load recent support tickets
+        try {
+          const ticketsResponse = await axios.get('/support-tickets?limit=5');
+          console.log('Support tickets loaded:', ticketsResponse.data);
+          setSupportTickets(ticketsResponse.data.tickets || []);
+        } catch (ticketError) {
+          console.error('Error loading support tickets:', ticketError);
+          // Mock data for development
+          const mockTickets = [
+            {
+              _id: '1',
+              ticketNumber: 'TKT-001',
+              subject: 'Product delivery issue',
+              customer: { firstName: 'John', lastName: 'Doe', email: 'john@example.com' },
+              status: 'open',
+              priority: 'high',
+              createdAt: new Date().toISOString()
+            },
+            {
+              _id: '2',
+              ticketNumber: 'TKT-002',
+              subject: 'Payment problem',
+              customer: { firstName: 'Jane', lastName: 'Smith', email: 'jane@example.com' },
+              status: 'open',
+              priority: 'medium',
+              createdAt: new Date().toISOString()
+            }
+          ];
+          console.log('Using mock tickets:', mockTickets);
+          setSupportTickets(mockTickets);
+        }
 
         setDashboardData({
           stats: {
@@ -88,6 +124,34 @@ const StaffDashboard = () => {
       default:
         toast.info('Feature coming soon!');
     }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'open': return 'bg-red-100 text-red-800';
+      case 'in_progress': return 'bg-yellow-100 text-yellow-800';
+      case 'resolved': return 'bg-green-100 text-green-800';
+      case 'closed': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-LK', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const stats = [
@@ -275,6 +339,63 @@ const StaffDashboard = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Support Tickets Widget */}
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                  <MessageCircle className="h-4 w-4 text-purple-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Recent Support Tickets</h3>
+              </div>
+              <button
+                onClick={() => navigate('/staff/support')}
+                className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+              >
+                View All →
+              </button>
+            </div>
+
+            {supportTickets.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <MessageCircle className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                <p>No support tickets yet</p>
+                <p className="text-xs text-gray-400 mt-2">
+                  Submit a message via the Contact page to create a support ticket
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {supportTickets.map((ticket) => (
+                  <div key={ticket._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium text-gray-900">{ticket.ticketNumber}</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
+                          {ticket.status}
+                        </span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(ticket.priority)}`}>
+                          {ticket.priority}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 mb-1">{ticket.subject}</p>
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <span>{ticket.customer.firstName} {ticket.customer.lastName}</span>
+                        <span>{formatDate(ticket.createdAt)}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigate('/staff/support')}
+                      className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

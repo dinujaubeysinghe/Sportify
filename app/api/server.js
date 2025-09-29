@@ -30,10 +30,18 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // CORS configuration
+const devOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3004'];
 const corsOptions = {
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3001'
-  ],
+  origin: (origin, callback) => {
+    const allowed = process.env.FRONTEND_URL
+      ? [process.env.FRONTEND_URL, ...devOrigins]
+      : devOrigins;
+    // Allow requests with no origin (like mobile apps, curl)
+    if (!origin || allowed.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   optionsSuccessStatus: 200
 };
