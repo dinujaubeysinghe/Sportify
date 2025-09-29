@@ -3,6 +3,7 @@ import { ShoppingCart } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "react-query";
 import axios from "axios";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import logo from "/SportifyLogo.png";
 
 import {
   BarChart,
@@ -122,41 +123,54 @@ const AdminOrders = () => {
     saveAs(blob, "orders_report.csv");
   };
 
-  const exportPDF = () => {
-    const doc = new jsPDF("p", "pt"); // portrait, points
-    doc.setFontSize(14);
-    doc.text("Sportify - Orders Report", 40, 40);
-    doc.setFontSize(10);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 60);
+ const exportPDF = () => {
+  const doc = new jsPDF("p", "pt"); // portrait, points
 
-    // Table body
-    const tableBody = orders.map((o) => [
-      o.orderNumber,
-      o.user?.fullName || "N/A",
-      `$${o.total.toFixed(2)}`,
-      o.paymentStatus,
-      new Date(o.createdAt).toLocaleDateString(),
-    ]);
+  // Add logo (x, y, width, height)
+  doc.addImage(logo, "PNG", 40, 20, 100, 30);
 
-    // Use autoTable
-    autoTable(doc, {
-      startY: 80,
-      head: [["Order #", "Customer", "Total", "Status", "Date"]],
-      body: tableBody,
-      theme: "grid",
-      headStyles: { fillColor: [99, 102, 241] }, // Tailwind indigo-500
-      styles: { fontSize: 9 },
-    });
+  // Title
+  doc.setFontSize(16);
+  doc.text("Sportify - Orders Report", 160, 50);
 
-    // Summary after table
-    const finalY = doc.lastAutoTable.finalY + 20;
-    doc.text(`Total Orders: ${orders.length}`, 40, finalY);
-    doc.text(`Paid Orders: ${paidOrders}`, 40, finalY + 15);
-    doc.text(`Pending Orders: ${pendingOrders}`, 40, finalY + 30);
-    doc.text(`Total Revenue: $${totalRevenue.toFixed(2)}`, 40, finalY + 45);
+  // Subtitle
+  doc.setFontSize(10);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 160, 65);
 
-    doc.save("orders_report.pdf");
-  };
+  // Table body
+  const tableBody = orders.map((o) => [
+    o.orderNumber,
+    o.user?.fullName || "N/A",
+    `$${o.total.toFixed(2)}`,
+    o.paymentStatus,
+    new Date(o.createdAt).toLocaleDateString(),
+  ]);
+
+  // Use autoTable
+  autoTable(doc, {
+    startY: 100,
+    head: [["Order #", "Customer", "Total", "Status", "Date"]],
+    body: tableBody,
+    theme: "grid",
+    headStyles: { fillColor: [99, 102, 241] }, // Tailwind indigo-500
+    styles: { fontSize: 9 },
+  });
+
+  // Summary after table
+  const finalY = doc.lastAutoTable.finalY + 20;
+  doc.text(`Total Orders: ${orders.length}`, 40, finalY);
+  doc.text(`Paid Orders: ${paidOrders}`, 40, finalY + 15);
+  doc.text(`Pending Orders: ${pendingOrders}`, 40, finalY + 30);
+  doc.text(`Total Revenue: $${totalRevenue.toFixed(2)}`, 40, finalY + 45);
+
+  // Footer (date + signature)
+  const pageHeight = doc.internal.pageSize.height;
+  doc.setFontSize(10);
+  doc.text(`Report generated on: ${new Date().toLocaleDateString()}`, 40, pageHeight - 60);
+  doc.text("Authorized Signature: ____________________", 40, pageHeight - 40);
+
+  doc.save("orders_report.pdf");
+};
 
   // =====================
   // --- RENDER ---

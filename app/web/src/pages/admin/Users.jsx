@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { Helmet } from 'react-helmet-async';
+import logo from "/SportifyLogo.png";
 import { 
   Users, 
   UserPlus, 
@@ -141,43 +142,63 @@ const AdminUsers = () => {
     }
   };
 
-  // Generate PDF Report
+// Generate PDF Report
 const generatePDFReport = () => {
-  const doc = new jsPDF();
-  doc.text("Sportify - User Analysis Report", 14, 16);
+  const doc = new jsPDF("p", "pt");
+
+  // Add Logo + Title
+  doc.addImage(logo, "PNG", 40, 20, 100, 40); // (x, y, w, h)
+  doc.setFontSize(16);
+  doc.text("Sportify - User Analysis Report", 160, 45); // Title aligned with logo
+  doc.setFontSize(10);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 160, 60);
 
   // Users table
   autoTable(doc, {
-    startY: 25,
-    head: [['Name', 'Email', 'Role', 'Status', 'Joined']],
-    body: users.map(u => [
+    startY: 90,
+    head: [["Name", "Email", "Role", "Status", "Joined"]],
+    body: users.map((u) => [
       `${u.firstName} ${u.lastName}`,
       u.email,
       u.role,
-      u.isActive ? 'Active' : 'Inactive',
-      new Date(u.createdAt).toLocaleDateString()
+      u.isActive ? "Active" : "Inactive",
+      new Date(u.createdAt).toLocaleDateString(),
     ]),
+    theme: "grid",
+    headStyles: { fillColor: [99, 102, 241] }, // Tailwind Indigo-500
+    styles: { fontSize: 9 },
   });
 
-  // Add Pie Chart
+  // Add Pie Chart page
   const pieCanvas = document.getElementById("pieChart");
   if (pieCanvas) {
     doc.addPage();
-    doc.text("Roles Distribution", 14, 16);
-    doc.addImage(pieCanvas.toDataURL("image/png"), "PNG", 15, 25, 180, 100);
+    doc.setFontSize(14);
+    doc.text("Roles Distribution", 40, 40);
+    doc.addImage(pieCanvas.toDataURL("image/png"), "PNG", 40, 60, 500, 300);
   }
 
-  // Add Line Chart
+  // Add Line Chart page
   const lineCanvas = document.getElementById("lineChart");
   if (lineCanvas) {
     doc.addPage();
-    doc.text("Registrations Over Time", 14, 16);
-    doc.addImage(lineCanvas.toDataURL("image/png"), "PNG", 15, 25, 180, 100);
+    doc.setFontSize(14);
+    doc.text("Registrations Over Time", 40, 40);
+    doc.addImage(lineCanvas.toDataURL("image/png"), "PNG", 40, 60, 500, 300);
   }
 
+  // Footer only on last page
+  const pageHeight = doc.internal.pageSize.height;
+  const totalPages = doc.getNumberOfPages();
+
+  doc.setPage(totalPages); // Go to last page
+  doc.setFontSize(10);
+  doc.text(`Report generated on: ${new Date().toLocaleDateString()}`, 40, pageHeight - 60);
+  doc.text("Authorized Signature: ____________________", 40, pageHeight - 40);
+
+  // Save file
   doc.save(`user-report-${Date.now()}.pdf`);
 };
-
 
 // Generate Excel Report
 const generateExcelReport = () => {

@@ -106,8 +106,6 @@ const RoleBasedNavbar = () => {
 
     const baseUserNav = [
       { name: 'Profile', href: '/profile', icon: User },
-      { name: 'Orders', href: '/orders', icon: ShoppingCart },
-      { name: 'Wishlist', href: '/wishlist', icon: Heart },
     ];
 
     // Add role-specific navigation
@@ -117,6 +115,8 @@ const RoleBasedNavbar = () => {
       baseUserNav.unshift({ name: 'Supplier Panel', href: '/supplier', icon: Truck });
     } else if (user.role === 'staff') {
       baseUserNav.unshift({ name: 'Staff Panel', href: '/staff', icon: MessageCircle });
+    }else{
+      baseUserNav.unshift({  name: 'Orders', href: '/orders', icon: ShoppingCart  });
     }
 
     return baseUserNav;
