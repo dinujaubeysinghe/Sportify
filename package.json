@@ -1,0 +1,32 @@
+{
+  "name": "sportify",
+  "version": "1.0.0",
+  "description": "Sportify E-commerce Platform - Full Stack Application",
+  "main": "app/api/server.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "cd app/api && npm run dev",
+    "dev:web": "cd app/web && npm run dev",
+    "build": "cd app/web && npm run build",
+    "start": "cd app/api && npm start",
+    "install:all": "npm install && cd app/api && npm install && cd ../web && npm install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ecommerce",
+    "sports",
+    "react",
+    "nodejs",
+    "mongodb",
+    "express"
+  ],
+  "author": "Sportify Team",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}
