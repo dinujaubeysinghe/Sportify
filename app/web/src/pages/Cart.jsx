@@ -182,6 +182,7 @@ const Cart = () => {
 
   return (
     <>
+    {/* Cart Page */}
       <Helmet>
         <title>Cart - Sportify</title>
         <meta name="description" content="Review your cart items and proceed to checkout." />
