@@ -2,6 +2,7 @@ import { createContext, useContext, useReducer, useEffect } from 'react';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 
 const AuthContext = createContext();
 
@@ -226,6 +227,33 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const deleteAccount = async () => {
+    try {
+      // Send delete request to backend
+      const response = await axios.delete('/auth/delete');
+      const message = response.data?.message || 'Account deleted successfully';
+
+      // Clear stored tokens and user info
+      Cookies.remove('token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      delete axios.defaults.headers.common['Authorization'];
+
+      // Update state
+      dispatch({ type: 'LOGOUT' });
+
+      // Show success toast
+      toast.success(message);
+
+      return { success: true, message };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to delete account';
+      toast.error(message);
+      return { success: false, message };
+    }
+  };
+
+
   const clearError = () => {
     dispatch({ type: 'CLEAR_ERROR' });
   };
@@ -241,6 +269,7 @@ export const AuthProvider = ({ children }) => {
     changePassword,
     getCurrentUser,
     clearError,
+    deleteAccount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

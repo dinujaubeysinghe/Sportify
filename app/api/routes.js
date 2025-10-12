@@ -16,6 +16,7 @@ router.use('/payroll', require('./routes/payrollRoutes'));
 router.use('/dashboard', require('./routes/dashboardRoutes'));
 router.use('/support-tickets', require('./routes/supportTicketRoutes'));
 router.use('/pdf', require('./routes/pdfRoutes'));
+router.use('/discounts', require('./routes/discountRoutes'));
 
 // Public routes (no auth)
 const { publicCreateTicket } = require('./controllers/supportTicketController');

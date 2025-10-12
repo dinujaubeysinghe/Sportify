@@ -17,6 +17,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import useSettings from '../../hooks/useSettings'; // Adjust path as needed
 
 const StaffDashboard = () => {
   const { user } = useAuth();
@@ -24,13 +25,17 @@ const StaffDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [supportTickets, setSupportTickets] = useState([]);
+    const { settings, isLoading: settingsLoading } = useSettings();
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-LK', {
-      style: 'currency',
-      currency: 'LKR'
-    }).format(price);
-  };
+    const currencyCode = settings?.currency || 'LKR'; 
+
+    // FIX: Dynamic currency code
+    const formatPrice = (price) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode // <--- DYNAMICALLY USE SETTINGS CURRENCY
+      }).format(price);
+    };
 
   useEffect(() => {
     const loadDashboardData = async () => {

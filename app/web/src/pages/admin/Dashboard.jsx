@@ -14,9 +14,11 @@ import {
 import axios from 'axios';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import SystemStatus from '../../components/debug/SystemStatus';
+import useSettings from '../../hooks/useSettings'; // Adjust path as needed
 
 const AdminDashboard = () => {
   const queryClient = useQueryClient();
+    const { settings, isLoading: settingsLoading } = useSettings();
 
   const { data: dashboard, isLoading } = useQuery(
     'admin-dashboard',
@@ -45,13 +47,15 @@ const AdminDashboard = () => {
     }
   );
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'LKR'
-    }).format(price);
-  };
+    const currencyCode = settings?.currency || 'LKR'; 
 
+    // FIX: Dynamic currency code
+    const formatPrice = (price) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode // <--- DYNAMICALLY USE SETTINGS CURRENCY
+      }).format(price);
+    };
   const formatNumber = (num) => {
     return new Intl.NumberFormat('en-US').format(num);
   };

@@ -20,6 +20,7 @@ import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import toast from 'react-hot-toast';
+import useSettings from '../hooks/useSettings'; // Adjust path as needed
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -32,6 +33,7 @@ const ProductDetail = () => {
   const [selectedColor, setSelectedColor] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
+    const { settings, isLoading: settingsLoading } = useSettings();
 
   // Fetch product details
   const { data: product, isLoading, error } = useQuery(
@@ -106,12 +108,15 @@ const ProductDetail = () => {
     }
   };
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'LKR'
-    }).format(price);
-  };
+    const currencyCode = settings?.currency || 'LKR'; 
+
+    // FIX: Dynamic currency code
+    const formatPrice = (price) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode // <--- DYNAMICALLY USE SETTINGS CURRENCY
+      }).format(price);
+    };
 
   const getDiscountPrice = () => {
     if (product?.discount > 0) {

@@ -15,16 +15,19 @@ import {
   Heart,
   Settings,
   Bell,
-  Shield
+  Shield,
+  Trash,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import toast from 'react-hot-toast';
 import Orders from './Orders';
+import Swal from 'sweetalert2';
+
 
 
 const Profile = () => {
-  const { user, updateProfile, isLoading,changePassword } = useAuth();
+  const { user, updateProfile, isLoading,changePassword,deleteAccount  } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   
@@ -50,6 +53,7 @@ const Profile = () => {
   });
 
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -122,6 +126,38 @@ const handleChangePassword = async (e) => {
     setIsUpdating(false);
   }
 };
+
+  const handleAccountDelete = async (e) => {
+    e.preventDefault();
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "This action will permanently delete your account!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+    });
+
+    if (result.isConfirmed) {
+      setIsDeleting(true);
+      try {
+        const res = await deleteAccount(); 
+        if (res.success) {
+          toast.success('Account deleted successfully');
+          window.location.href = '/'; // redirect after deletion
+        } else {
+          toast.error(res.message || 'Failed to delete account');
+        }
+      } catch (error) {
+        toast.error(error?.message || 'Failed to delete account');
+      } finally {
+        setIsDeleting(false);
+      }
+    }
+  };
+
 
 
   const tabs = [
@@ -376,6 +412,7 @@ const handleChangePassword = async (e) => {
                 {/* Security Tab */}
                 {activeTab === 'security' && (
                   <div className="p-6">
+                    <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-6">Security Settings</h2>
                     
                     <form onSubmit={handleChangePassword} className="space-y-6">
@@ -427,7 +464,21 @@ const handleChangePassword = async (e) => {
                         {isUpdating ? 'Updating...' : 'Change Password'}
                       </button>
                     </form>
+
+                    </div>
+                    <div className='pt-8'>
+                      <h4 className="text-lg font-semibold text-gray-900 mb-6">Account Delete</h4>
+                        <button
+                          onClick={handleAccountDelete} // ✅ use the handler with Swal confirmation
+                          disabled={isDeleting}
+                          className="flex items-center px-6 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50"
+                        >
+                          <Trash className="w-4 h-4 mr-2" />
+                          {isDeleting ? 'Deleting...' : 'Delete'}
+                        </button>
+                    </div>
                   </div>
+                  
                 )}
 
                 {/* Orders Tab */}

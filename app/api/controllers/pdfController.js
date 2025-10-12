@@ -1,6 +1,7 @@
 const htmlPdf = require('html-pdf-node');
 const path = require('path');
 
+
 // @desc    Generate PDF report for customers
 // @route   POST /api/pdf/customer-report
 // @access  Staff/Admin

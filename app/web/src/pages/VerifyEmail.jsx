@@ -14,36 +14,37 @@ const VerifyEmail = () => {
     const verify = async () => {
       try {
         const res = await verifyEmail(token); // ✅ call context function
+        if(res.success){
+          setMessage(res?.message || "Email verified successfully!");
+          setLoading(false);
 
-        setMessage(res?.message || "Email verified successfully!");
-        setLoading(false);
+          await Swal.fire({
+            title: "Success!",
+            text: res?.message || "Your email has been verified successfully.",
+            icon: "success",
+            confirmButtonColor: "#2563eb",
+          });
 
-        await Swal.fire({
-          title: "Success!",
-          text: res?.message || "Your email has been verified successfully.",
-          icon: "success",
-          confirmButtonColor: "#2563eb",
-        });
-
-        navigate("/login");
+          navigate("/login");
+        }else{
+          await Swal.fire({
+            title: "Error!",
+            text: "Invalid or expired token. Please request a new verification link.",
+            icon: "error",
+            confirmButtonColor: "#dc2626",
+          });
+          navigate("/");
+        }
       } catch (error) {
         console.error("Verification error:", error);
         setMessage(error.message || "Invalid or expired token");
         setLoading(false);
-
-        await Swal.fire({
-          title: "Error!",
-          text: error.message || "Invalid or expired token. Please request a new verification link.",
-          icon: "error",
-          confirmButtonColor: "#dc2626",
-        });
-
         navigate("/register");
       }
     };
 
     verify();
-  }, [token, verifyEmail, navigate]);
+  }, [token]);
 
   return (
     <div className="flex flex-col min-h-screen items-center justify-center bg-gray-50">

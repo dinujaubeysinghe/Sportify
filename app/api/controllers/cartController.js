@@ -1,6 +1,9 @@
 const { validationResult } = require('express-validator');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
+const Discount = require('../models/Discount'); // Make sure this is imported
+const Setting = require('../models/Settings');
+
 
 exports.getCart = async (req, res) => {
   try {
@@ -159,45 +162,76 @@ exports.clearCart = async (req, res) => {
 };
 
 exports.applyDiscount = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+        }
 
-    const { code } = req.body;
+        const { code } = req.body;
 
-    const cart = await Cart.findOne({ user: req.user._id }).populate({
-        path: 'items.product',
-        select: 'name price images stock category brand sku',
-        populate: [
-          { path: 'category', select: 'name' },
-          { path: 'brand', select: 'name' }
-        ]
-      });
-    if (!cart || cart.items.length === 0) return res.status(400).json({ success: false, message: 'Cart is empty' });
+        // 1. Fetch Cart
+        const cart = await Cart.findOne({ user: req.user._id }).populate({
+            path: 'items.product',
+            select: 'price', // Only need price to calculate subtotal
+        });
+        if (!cart || cart.items.length === 0) {
+            return res.status(400).json({ success: false, message: 'Cart is empty' });
+        }
 
-    const validDiscountCodes = {
-      'WELCOME10': { percentage: 10, type: 'percentage' },
-      'SAVE20': { percentage: 20, type: 'percentage' },
-      'FREESHIP': { amount: 0, type: 'free_shipping' }
-    };
+        // 2. Calculate Subtotal (required for discount calculation)
+        const subtotal = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+        
+        // 3. Find and Validate Discount from Model
+        const discountDoc = await Discount.findOne({ code: code.toUpperCase() });
+        
+        if (!discountDoc) {
+            return res.status(400).json({ success: false, message: 'Invalid discount code' });
+        }
+        
+        if (!discountDoc.isValid()) {
+            return res.status(400).json({ success: false, message: 'Discount code expired or inactive' });
+        }
 
-    const discount = validDiscountCodes[code.toUpperCase()];
-    if (!discount) return res.status(400).json({ success: false, message: 'Invalid discount code' });
+        // 4. Calculate Discount Amount using the model method
+        const discountAmount = discountDoc.calculateDiscount(subtotal);
+        
+        // Handle $0 discount case (e.g., Free Shipping, though that logic isn't fully reflected here)
+        if (discountAmount < 0) {
+            // Should not happen with the current calculateDiscount, but acts as a safeguard
+            return res.status(400).json({ success: false, message: 'Discount calculation failed' });
+        }
 
-    const subtotal = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+        // 5. Apply Discount to Cart Document
+        cart.appliedDiscount = { 
+            code: discountDoc.code, 
+            percentage: discountDoc.type === 'percentage' ? discountDoc.value : undefined, 
+            amount: discountAmount 
+        };
+        
+        // Note on Free Shipping: If discount.type was 'free_shipping', you would 
+        // set cart.shippingCost = 0 and cart.appliedDiscount.amount = 0 here,
+        // but for now, we only handle percentage/fixed and assume fixed $0 discounts
+        // mean 0 monetary discount.
 
-    let discountAmount = 0;
-    if (discount.type === 'percentage') discountAmount = subtotal * (discount.percentage / 100);
-    else if (discount.type === 'fixed_amount') discountAmount = discount.amount;
+        await cart.save(); // This triggers the cartSchema pre('save') hook, which calculates cart.total
 
-    cart.appliedDiscount = { code: code.toUpperCase(), percentage: discount.percentage, amount: discountAmount };
-    await cart.save();
+        // 6. Respond with the updated cart (including the new discounted total)
+        // Re-populate for the response to the frontend
+        await cart.populate({
+            path: 'items.product',
+            select: 'name price images stock category brand sku',
+            populate: [
+                { path: 'category', select: 'name' },
+                { path: 'brand', select: 'name' }
+            ]
+        });
 
-    res.json({ success: true, message: 'Discount code applied successfully', cart });
-  } catch (error) {
-    console.error('Apply discount error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+        res.json({ success: true, message: 'Discount code applied successfully', cart });
+    } catch (error) {
+        console.error('Apply discount error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
 };
 
 exports.removeDiscount = async (req, res) => {
@@ -242,33 +276,47 @@ exports.updateShipping = async (req, res) => {
 };
 
 exports.getSummary = async (req, res) => {
-  try {
-    const cart = await Cart.findOne({ user: req.user._id })
-      .populate({
-        path: 'items.product',
-        select: 'name price images stock category brand sku',
-        populate: [
-          { path: 'category', select: 'name' },
-          { path: 'brand', select: 'name' }
-        ]
-      });
+  try {
+    const cart = await Cart.findOne({ user: req.user._id })
+      .populate({
+        path: 'items.product',
+        select: 'name price images stock category brand sku',
+        populate: [
+          { path: 'category', select: 'name' },
+          { path: 'brand', select: 'name' }
+        ]
+      });
 
-    if (!cart) {
-      return res.json({
-        success: true,
-        summary: { itemCount: 0, subtotal: 0, tax: 0, shipping: 0, discount: 0, total: 0 }
-      });
-    }
+    if (!cart) {
+      return res.json({
+        success: true,
+        summary: { itemCount: 0, subtotal: 0, tax: 0, shipping: 0, discount: 0, total: 0 }
+      });
+    }
 
-    const summary = cart.getSummary();
-    // Calculate tax (example: 8% tax rate)
-    summary.tax = +(summary.subtotal * 0.08).toFixed(2);
-    summary.total = +(summary.subtotal + summary.tax - (summary.discount || 0) + (summary.shipping || 0)).toFixed(2);
-    res.json({ success: true, summary });
-  } catch (error) {
-    console.error('Get cart summary error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+    // Use a temporary save/reload to ensure totals are fresh before fetching summary
+    // Since getSummary is mostly for displaying the final computed values (which should be correct after every save/update), 
+    // we'll rely on the pre-save hook having fired previously, but re-run it safely here if needed.
+    // For simplicity, we assume cart.tax and cart.total are correct based on the last save.
+
+    const summary = cart.getSummary();
+    
+    // NOTE: If cart.getSummary() returns raw subtotal/discount, you must recalculate 
+    // tax here for display purposes ONLY, as the Mongoose hook handles the actual save.
+    // However, since the Mongoose pre-save hook is now the source of truth,
+    // we should fetch the current rate to verify the summary logic:
+    const globalSettings = await Setting.getGlobalSettings();
+    const globalTaxRate = globalSettings.taxRate / 100;
+    const undiscountedSubtotal = summary.subtotal - (summary.discount || 0);
+
+    summary.tax = +(undiscountedSubtotal * globalTaxRate).toFixed(2); // <--- DYNAMIC TAX RATE APPLIED
+    summary.total = +(summary.subtotal + summary.tax - (summary.discount || 0) + (summary.shipping || 0)).toFixed(2);
+    
+    res.json({ success: true, summary });
+  } catch (error) {
+    console.error('Get cart summary error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 };
 
 

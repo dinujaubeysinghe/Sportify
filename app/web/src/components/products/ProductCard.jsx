@@ -3,10 +3,14 @@ import { Heart, ShoppingCart, Star } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import useSettings from '../../hooks/useSettings'; // Adjust path as needed
+
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuth();
+  const { settings, isLoading: settingsLoading } = useSettings();
+
 
   const handleAddToCart = async (e) => {
     e.preventDefault();
@@ -33,10 +37,12 @@ const ProductCard = ({ product }) => {
     toast.success('Added to wishlist!');
   };
 
+  const currencyCode = settings?.currency || 'LKR'; 
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'LKR'
+      currency: currencyCode
     }).format(price);
   };
 

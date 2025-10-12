@@ -19,6 +19,7 @@ import {
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
+import useSettings from '../../hooks/useSettings'; // Adjust path as needed
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -31,6 +32,7 @@ const Customers = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportType, setReportType] = useState('customer_summary');
   const [reportPeriod, setReportPeriod] = useState('30');
+    const { settings, isLoading: settingsLoading } = useSettings();
 
   // Load customers data
   const loadCustomers = async () => {
@@ -293,12 +295,15 @@ const Customers = () => {
     setFilteredCustomers(filtered);
   }, [customers, searchTerm, statusFilter]);
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-LK', {
-      style: 'currency',
-      currency: 'LKR'
-    }).format(price);
-  };
+    const currencyCode = settings?.currency || 'LKR'; 
+
+    // FIX: Dynamic currency code
+    const formatPrice = (price) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode // <--- DYNAMICALLY USE SETTINGS CURRENCY
+      }).format(price);
+    };
 
   const formatDate = (date) => {
     if (!date) return 'N/A';

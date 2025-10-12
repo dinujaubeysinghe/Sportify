@@ -25,7 +25,7 @@ import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import SystemTest from './pages/SystemTest';
 import About from './pages/about';
-
+import ReviewSubmission from './pages/ReviewSubmission';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -38,6 +38,9 @@ import AdminOrderDetails from './pages/admin/OrderDetail';
 import AdminUsers from './pages/admin/Users';
 import AdminInventory from './pages/admin/Inventory';
 import AdminSuppliers from './pages/admin/Suppliers';
+import AdminDiscount from './pages/admin/Discount';
+import AdminSettings from './pages/admin/Settings';
+import AdminPayments from './pages/admin/Payments';
 
 // Supplier Pages
 import SupplierDashboard from './pages/supplier/Dashboard';
@@ -117,6 +120,11 @@ function App() {
                         <OrderDetail />
                       </ProtectedRoute>
                     } />
+                    <Route path="/review/:productId" element={
+                      <ProtectedRoute>
+                        <ReviewSubmission />
+                      </ProtectedRoute>
+                    } />
                     <Route path="/system-test" element={<SystemTest />} />
                     
                     {/* Admin Routes */}
@@ -168,6 +176,21 @@ function App() {
                     <Route path="/admin/suppliers" element={
                       <AdminRoute>
                         <AdminSuppliers />
+                      </AdminRoute>
+                    } />
+                    <Route path="/admin/discount" element={
+                      <AdminRoute>
+                        <AdminDiscount />
+                      </AdminRoute>
+                    } />
+                    <Route path="/admin/payments" element={
+                      <AdminRoute>
+                        <AdminPayments />
+                      </AdminRoute>
+                    } />
+                    <Route path="/admin/settings" element={
+                      <AdminRoute>
+                        <AdminSettings />
                       </AdminRoute>
                     } />
                     

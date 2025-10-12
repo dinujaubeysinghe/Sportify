@@ -4,65 +4,88 @@ const { validationResult } = require('express-validator');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
 const { verifyEmailTemplate, forgotPasswordTemplate, passwordChangedTemplate } = require('../emails/emailTemplates');
+const Product = require('../models/Product');
+const Order = require('../models/Order');
+const Cart = require('../models/Cart');
+const Inventory = require('../models/Inventory');
+const Setting = require('../models/Settings'); // Import Setting Model
 require("dotenv").config();
 
-// Generate JWT Token
+// Generate JWT Token (unchanged)
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '7d'
-  });
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || '7d'
+  });
 };
 
 exports.register = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
+
+    const { firstName, lastName, email, password, role = 'customer', phone, businessName, businessLicense, taxId, employeeId, department, hireDate } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'User already exists with this email' });
+    }
+
+    // 1. Fetch global settings
+    const globalSettings = await Setting.getGlobalSettings();
+    const autoApprove = globalSettings.autoApproveSuppliers;
+    const requireVerification = globalSettings.requireEmailVerification;
+
+
+    const userData = { firstName, lastName, email, password, role, phone };
+
+    if (role === 'supplier') {
+      userData.businessName = businessName;
+      userData.businessLicense = businessLicense;
+      userData.taxId = taxId;
+      userData.isApproved = autoApprove;
+    } else if (role === 'staff') {
+      userData.employeeId = employeeId;
+      userData.department = department;
+      userData.hireDate = hireDate;
+    }
+    
+    // 2. Conditional Email Verification Logic
+    // If verification is NOT required, set the user as verified immediately.
+    if (!requireVerification) {
+        userData.isVerified = true;
     }
 
-    const { firstName, lastName, email, password, role = 'customer', phone, businessName, businessLicense, taxId, employeeId, department, hireDate } = req.body;
+    const user = await User.create(userData);
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'User already exists with this email' });
+    // 3. Only proceed with token generation and email if verification IS required.
+    if (requireVerification) {
+        const verificationToken = crypto.randomBytes(20).toString('hex');
+        // Save the hashed token to the user document
+        user.verificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+        await user.save({ validateBeforeSave: false });
+
+        const verifyUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+
+        await sendEmail({
+            to: user.email,
+            subject: 'Verify your email',
+            html: verifyEmailTemplate(verifyUrl, user.firstName)
+        });
     }
 
-    const userData = { firstName, lastName, email, password, role, phone };
+    res.status(201).json({
+      success: true,
+      message: requireVerification
+          ? 'User registered successfully. Please check your email to verify your account.'
+          : 'User registered and account is active.'
+    });
 
-    if (role === 'supplier') {
-      userData.businessName = businessName;
-      userData.businessLicense = businessLicense;
-      userData.taxId = taxId;
-      userData.isApproved = false;
-    } else if (role === 'staff') {
-      userData.employeeId = employeeId;
-      userData.department = department;
-      userData.hireDate = hireDate;
-    }
-
-    const user = await User.create(userData);
-
-    const verificationToken = crypto.randomBytes(20).toString('hex');
-    user.verificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
-    await user.save({ validateBeforeSave: false });
-
-    const verifyUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
-
-    await sendEmail({
-      to: user.email,
-      subject: 'Verify your email',
-      html: verifyEmailTemplate(verifyUrl, user.firstName)
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully. Please check your email to verify your account.'
-    });
-
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ success: false, message: 'Server error during registration' });
-  }
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ success: false, message: 'Server error during registration' });
+  }
 };
 
 exports.verifyEmail = async (req, res) => {
@@ -241,6 +264,53 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+exports.deleteAccount = async (req, res) => {
+  const _id = req.user._id;
+
+  try {
+    const user = await User.findById(_id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.role === 'admin') {
+      return res.status(403).json({ message: 'Admin cannot delete their account' });
+    } else if (user.role === 'supplier') {
+      // Find supplier products
+      const products = await Product.find({ supplier: _id });
+      const productIds = products.map(p => p._id);
+
+      // Delete products
+      await Product.deleteMany({ supplier: _id });
+
+      // Delete supplier orders
+      await Order.deleteMany({ supplier: _id });
+
+      // Delete Inventory
+      await Inventory.deleteMany({performedBy:_id});
+
+      // Remove deleted products from all carts
+      await Cart.updateMany(
+        { 'items.product': { $in: productIds } },
+        { $pull: { items: { product: { $in: productIds } } } }
+      );
+
+    } else {
+      // For regular users, delete their cart
+      await Cart.findOneAndDelete({ user: _id });
+    }
+
+    // Finally, delete the user
+    await User.findByIdAndDelete(_id);
+
+    res.status(200).json({ status: 'success', message: 'User deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 
 exports.testEmail = async (req, res) => {
   try {

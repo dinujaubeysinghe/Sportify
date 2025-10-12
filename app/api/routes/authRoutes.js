@@ -11,6 +11,7 @@ const {
   forgotPassword,
   resetPassword,
   verifyEmail,
+  deleteAccount,
   testEmail
 } = require('../controllers/authController');
 
@@ -64,7 +65,9 @@ router.put('/reset-password/:token', [
   body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
 ], resetPassword);
 
-router.get('/verify-email/:token', verifyEmail);
+router.post('/verify-email/:token', verifyEmail);
+
+router.delete('/delete',protect, deleteAccount);
 
 // Test email endpoint
 router.post('/test-email', testEmail);

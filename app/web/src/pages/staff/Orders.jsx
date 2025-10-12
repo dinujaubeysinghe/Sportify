@@ -18,6 +18,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import useSettings from '../../hooks/useSettings'; // Adjust path as needed
 
 const OrdersPage = () => {
   const { user } = useAuth();
@@ -33,6 +34,7 @@ const OrdersPage = () => {
     dateRange: 'all'
   });
   const [orderSearch, setOrderSearch] = useState('');
+    const { settings, isLoading: settingsLoading } = useSettings();
 
   // Load orders data
   const loadOrdersData = async () => {
@@ -194,12 +196,15 @@ const OrdersPage = () => {
     loadOrdersData();
   }, []);
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-LK', {
-      style: 'currency',
-      currency: 'LKR'
-    }).format(price);
-  };
+    const currencyCode = settings?.currency || 'LKR'; 
+
+    // FIX: Dynamic currency code
+    const formatPrice = (price) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode // <--- DYNAMICALLY USE SETTINGS CURRENCY
+      }).format(price);
+    };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {

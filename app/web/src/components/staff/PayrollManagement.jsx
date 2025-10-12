@@ -14,12 +14,14 @@ import {
   Settings
 } from 'lucide-react';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import useSettings from '../hooks/useSettings'; // Adjust path as needed
 
 const PayrollManagement = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [payrollData, setPayrollData] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('current');
+    const { settings, isLoading: settingsLoading } = useSettings();
 
   useEffect(() => {
     // Simulate loading payroll data
@@ -122,12 +124,15 @@ const PayrollManagement = () => {
     loadPayrollData();
   }, []);
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-LK', {
-      style: 'currency',
-      currency: 'LKR'
-    }).format(amount);
-  };
+    const currencyCode = settings?.currency || 'LKR'; 
+
+    // FIX: Dynamic currency code
+    const formatPrice = (price) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode // <--- DYNAMICALLY USE SETTINGS CURRENCY
+      }).format(price);
+    };
 
   const getStatusIcon = (status) => {
     switch (status) {

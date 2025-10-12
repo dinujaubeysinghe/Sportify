@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import useSettings from '../hooks/useSettings'; // Adjust path as needed
 
 const InventoryReports = () => {
   const [reportType, setReportType] = useState('stock-summary');
@@ -21,6 +22,7 @@ const InventoryReports = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isGenerating, setIsGenerating] = useState(false);
+    const { settings, isLoading: settingsLoading } = useSettings();
 
   // Fetch report data
   const { data: reportData, isLoading } = useQuery(
@@ -75,12 +77,15 @@ const InventoryReports = () => {
     }
   };
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price);
-  };
+    const currencyCode = settings?.currency || 'LKR'; 
+
+    // FIX: Dynamic currency code
+    const formatPrice = (price) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode // <--- DYNAMICALLY USE SETTINGS CURRENCY
+      }).format(price);
+    };
 
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString('en-US', {

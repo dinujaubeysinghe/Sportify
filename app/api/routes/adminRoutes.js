@@ -32,7 +32,7 @@ router.post('/staff', protect, authorize('admin'), [
 ], adminController.createStaff);
 
 // Settings
-router.get('/settings', protect, authorize('admin'), adminController.getSettings);
+router.get('/settings', adminController.getSettings);
 router.put('/settings', protect, authorize('admin'), [
   body('siteName').optional().trim().notEmpty().withMessage('Site name cannot be empty'),
   body('currency').optional().isLength({ min: 3, max: 3 }).withMessage('Currency must be 3 characters'),

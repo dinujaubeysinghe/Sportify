@@ -9,10 +9,12 @@ import { useQuery } from 'react-query';
 import axios from 'axios';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
+import useSettings from '../../hooks/useSettings'; // Adjust path as needed
 
 const SupplierDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+    const { settings, isLoading: settingsLoading } = useSettings();
 
   // ----------------------------
   // Fetch Supplier Summary
@@ -56,8 +58,15 @@ const SupplierDashboard = () => {
     );
   }
 
-  const formatPrice = (price) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'LKR' }).format(price);
+    const currencyCode = settings?.currency || 'LKR'; 
+
+    // FIX: Dynamic currency code
+    const formatPrice = (price) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode // <--- DYNAMICALLY USE SETTINGS CURRENCY
+      }).format(price);
+    };
 
   const getStatusColor = (status) => {
     switch (status) {
