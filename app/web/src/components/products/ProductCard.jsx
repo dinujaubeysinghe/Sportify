@@ -3,10 +3,14 @@ import { Heart, ShoppingCart, Star } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import useSettings from '../../hooks/useSettings'; // Adjust path as needed
+
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuth();
+  const { settings, isLoading: settingsLoading } = useSettings();
+
 
   const handleAddToCart = async (e) => {
     e.preventDefault();
@@ -33,10 +37,12 @@ const ProductCard = ({ product }) => {
     toast.success('Added to wishlist!');
   };
 
+  const currencyCode = settings?.currency || 'LKR'; 
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'LKR'
+      currency: currencyCode
     }).format(price);
   };
 
@@ -75,7 +81,7 @@ const ProductCard = ({ product }) => {
           )}
 
           {/* Quick Actions */}
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          {/* <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <button
               onClick={handleWishlist}
               className="bg-white p-2 rounded-full shadow-md hover:bg-gray-100 transition-colors mb-2"
@@ -83,7 +89,7 @@ const ProductCard = ({ product }) => {
             >
               <Heart className="w-4 h-4 text-gray-600" />
             </button>
-          </div>
+          </div> */}
         </div>
 
         {/* Product Info */}

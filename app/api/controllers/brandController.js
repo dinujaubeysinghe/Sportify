@@ -57,14 +57,27 @@ exports.updateBrand = async (req, res) => {
 
 exports.deleteBrand = async (req, res) => {
   try {
-    const brand = await Brand.findById(req.params.id);
+    const brand = await Brand.findByIdAndDelete(req.params.id);
     if (!brand) return res.status(404).json({ success: false, message: 'Brand not found' });
 
-    brand.isActive = false;
-    await brand.save();
+
     res.json({ success: true, message: 'Brand deactivated successfully' });
   } catch (error) {
     console.error('Delete brand error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.activeBrand = async (req, res) => {
+  try {
+    const brand = await Brand.findById(req.params.id);
+    if (!brand) return res.status(404).json({ success: false, message: 'Brand not found' });
+
+    brand.isActive = true;
+    await brand.save();
+    res.json({ success: true, message: 'Brand activated successfully' });
+  } catch (error) {
+    console.error('Activate brand error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

@@ -79,12 +79,69 @@ const welcomeTemplate = (name = '', loginUrl = FRONTEND_URL) => {
 // Order Flow Templates
 // ---------------------
 const orderConfirmationTemplate = (orderDetails, name = '') => {
+  const { orderNumber, items, shippingAddress, billingAddress, paymentMethod, subtotal, tax, shippingCost, discount, total, shipmentStatus } = orderDetails;
+
+  const itemsHtml = items.map(item => `
+    <tr>
+      <td style="padding:8px; border:1px solid #ddd;">${item.name}</td>
+      <td style="padding:8px; border:1px solid #ddd;">${item.quantity}</td>
+      <td style="padding:8px; border:1px solid #ddd;">${item.price.toLocaleString()}</td>
+      <td style="padding:8px; border:1px solid #ddd;">${(item.price * item.quantity).toLocaleString()}</td>
+    </tr>
+  `).join('');
+
+  const shippingHtml = `
+    ${shippingAddress.firstName} ${shippingAddress.lastName}<br>
+    ${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.state} - ${shippingAddress.zipCode}<br>
+    ${shippingAddress.country}<br>
+    Phone: ${shippingAddress.phone || 'N/A'}
+  `;
+
+  const billingHtml = `
+    ${billingAddress.firstName} ${billingAddress.lastName}<br>
+    ${billingAddress.street}, ${billingAddress.city}, ${billingAddress.state} - ${billingAddress.zipCode}<br>
+    ${billingAddress.country}
+  `;
+
   const body = `
     <p>Hi ${name || 'Customer'},</p>
     <p>Thank you for your order! Here are your order details:</p>
-    <pre style="background-color:#f1f1f1; padding:10px; border-radius:5px;">${JSON.stringify(orderDetails, null, 2)}</pre>
+
+    <h3>Order #: ${orderNumber}</h3>
+
+    <h4>Items:</h4>
+    <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
+      <thead>
+        <tr>
+          <th style="padding:8px; border:1px solid #ddd; text-align:left;">Product</th>
+          <th style="padding:8px; border:1px solid #ddd; text-align:left;">Quantity</th>
+          <th style="padding:8px; border:1px solid #ddd; text-align:left;">Price</th>
+          <th style="padding:8px; border:1px solid #ddd; text-align:left;">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsHtml}
+      </tbody>
+    </table>
+
+    <h4>Shipping Address:</h4>
+    <p>${shippingHtml}</p>
+
+    <h4>Billing Address:</h4>
+    <p>${billingHtml}</p>
+
+    <h4>Payment & Summary:</h4>
+    <p>Payment Method: ${paymentMethod}</p>
+    <p>Subtotal: ${subtotal.toLocaleString()}</p>
+    <p>Tax: ${tax.toLocaleString()}</p>
+    <p>Shipping: ${shippingCost.toLocaleString()}</p>
+    <p>Discount: ${discount?.amount?.toLocaleString() || 0}</p>
+    <p><strong>Total: ${total.toLocaleString()}</strong></p>
+    <p>Shipment Status: ${shipmentStatus}</p>
+
     <p>We will notify you once your order is shipped.</p>
   `;
+
   return emailLayout('Order Confirmation', body);
 };
 

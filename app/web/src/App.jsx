@@ -13,6 +13,7 @@ import Footer from './components/layout/Footer';
 
 // Pages
 import Home from './pages/Home';
+import Contact from './pages/Contact';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
@@ -23,6 +24,8 @@ import Profile from './pages/Profile';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import SystemTest from './pages/SystemTest';
+import About from './pages/about';
+import ReviewSubmission from './pages/ReviewSubmission';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -35,6 +38,9 @@ import AdminOrderDetails from './pages/admin/OrderDetail';
 import AdminUsers from './pages/admin/Users';
 import AdminInventory from './pages/admin/Inventory';
 import AdminSuppliers from './pages/admin/Suppliers';
+import AdminDiscount from './pages/admin/Discount';
+import AdminSettings from './pages/admin/Settings';
+import AdminPayments from './pages/admin/Payments';
 
 // Supplier Pages
 import SupplierDashboard from './pages/supplier/Dashboard';
@@ -48,12 +54,14 @@ import SupplierAnalysis from './pages/supplier/InventoryAnalysisReport';
 import StaffDashboard from './pages/staff/Dashboard';
 import StaffOrders from './pages/staff/Orders';
 import StaffSupport from './pages/staff/Support';
+import Customers from './pages/staff/Customers';
 
 // Protected Routes
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AdminRoute from './components/auth/AdminRoute';
 import SupplierRoute from './components/auth/SupplierRoute';
 import StaffRoute from './components/auth/StaffRoute';
+import VerifyEmail from './pages/VerifyEmail';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -78,10 +86,13 @@ function App() {
                   <Routes>
                     {/* Public Routes */}
                     <Route path="/" element={<Home />} />
+                    <Route path="/contact" element={<Contact/>} />
+                    <Route path="/about" element={<About/>} />
                     <Route path="/products" element={<Products />} />
                     <Route path="/products/:id" element={<ProductDetail />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
+                    <Route path="/verify-email/:token" element={<VerifyEmail/>} />
                     
                     {/* Protected Routes */}
                     <Route path="/cart" element={
@@ -107,6 +118,11 @@ function App() {
                     <Route path="/orders/:id" element={
                       <ProtectedRoute>
                         <OrderDetail />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/review/:productId" element={
+                      <ProtectedRoute>
+                        <ReviewSubmission />
                       </ProtectedRoute>
                     } />
                     <Route path="/system-test" element={<SystemTest />} />
@@ -162,6 +178,21 @@ function App() {
                         <AdminSuppliers />
                       </AdminRoute>
                     } />
+                    <Route path="/admin/discount" element={
+                      <AdminRoute>
+                        <AdminDiscount />
+                      </AdminRoute>
+                    } />
+                    <Route path="/admin/payments" element={
+                      <AdminRoute>
+                        <AdminPayments />
+                      </AdminRoute>
+                    } />
+                    <Route path="/admin/settings" element={
+                      <AdminRoute>
+                        <AdminSettings />
+                      </AdminRoute>
+                    } />
                     
                     {/* Supplier Routes */}
                     <Route path="/supplier" element={
@@ -209,6 +240,11 @@ function App() {
                     <Route path="/staff/support" element={
                       <StaffRoute>
                         <StaffSupport />
+                      </StaffRoute>
+                    } />
+                    <Route path="/staff/customers" element={
+                      <StaffRoute>
+                        <Customers />
                       </StaffRoute>
                     } />
                   </Routes>

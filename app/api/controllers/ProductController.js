@@ -3,58 +3,71 @@ const Product = require('../models/Product');
 
 // ===================== GET ALL PRODUCTS =====================
 exports.getProducts = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
-    }
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 12;
-    const skip = (page - 1) * limit;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12;
+    const skip = (page - 1) * limit;
 
-    const filter = { isActive: true };
+    const filter = { };
 
-    if (req.query.category) filter.category = req.query.category;
-    if (req.query.brand) filter.brand = new RegExp(req.query.brand, 'i');
-    if (req.query.minPrice || req.query.maxPrice) {
-      filter.price = {};
-      if (req.query.minPrice) filter.price.$gte = parseFloat(req.query.minPrice);
-      if (req.query.maxPrice) filter.price.$lte = parseFloat(req.query.maxPrice);
-    }
-    if (req.query.search) filter.$text = { $search: req.query.search };
-    if (req.query.featured === 'true') filter.isFeatured = true;
+    // --- CRITICAL FIX START: Filter by isActive ---
+    // The frontend sends isActive=true. We filter based on that.
+    // If the frontend does NOT send the parameter (e.g., admin route), 
+    // you might skip this line or apply different logic. 
+    // Here, we explicitly listen for the 'true' string from the query param.
+    if (req.query.isActive === 'true') {
+        filter.isActive = true;
+    } 
+    // If you want all public-facing routes to ONLY show active products by default:
+    // else { filter.isActive = true; } 
+    // For now, we only apply the filter when requested by the client.
+    // --- CRITICAL FIX END ---
 
-    let sort = { createdAt: -1 };
-    switch (req.query.sort) {
-      case 'price_asc': sort = { price: 1 }; break;
-      case 'price_desc': sort = { price: -1 }; break;
-      case 'name_asc': sort = { name: 1 }; break;
-      case 'name_desc': sort = { name: -1 }; break;
-      case 'newest': sort = { createdAt: -1 }; break;
-      case 'rating': sort = { 'ratings.average': -1 }; break;
-    }
+    if (req.query.category) filter.category = req.query.category;
+    if (req.query.brand) filter.brand = new RegExp(req.query.brand, 'i');
+    if (req.query.minPrice || req.query.maxPrice) {
+      filter.price = {};
+      if (req.query.minPrice) filter.price.$gte = parseFloat(req.query.minPrice);
+      if (req.query.maxPrice) filter.price.$lte = parseFloat(req.query.maxPrice);
+    }
+    if (req.query.search) filter.$text = { $search: req.query.search };
+    if (req.query.featured === 'true') filter.isFeatured = true;
 
-    const products = await Product.find(filter)
-      .populate('supplier', 'businessName firstName lastName')
-      .populate('category', 'name')
-      .populate('brand', 'name')
-      .sort(sort).skip(skip).limit(limit);
+    let sort = { createdAt: -1 };
+    switch (req.query.sort) {
+      case 'price_asc': sort = { price: 1 }; break;
+      case 'price_desc': sort = { price: -1 }; break;
+      case 'name_asc': sort = { name: 1 }; break;
+      case 'name_desc': sort = { name: -1 }; break;
+      case 'newest': sort = { createdAt: -1 }; break;
+      case 'rating': sort = { 'ratings.average': -1 }; break;
+    }
 
-    const total = await Product.countDocuments(filter);
+    const products = await Product.find(filter)
+      .populate('supplier', 'businessName firstName lastName')
+      .populate('category', 'name')
+      .populate('brand', 'name')
+      .sort(sort).skip(skip).limit(limit);
 
-    res.json({
-      success: true,
-      count: products.length,
-      total,
-      page,
-      pages: Math.ceil(total / limit),
-      products
-    });
-  } catch (error) {
-    console.error('Get products error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+    const total = await Product.countDocuments(filter);
+
+    res.json({
+      success: true,
+      count: products.length,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+      products
+    });
+  } catch (error) {
+    console.error('Get products error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 };
 
 // ===================== GET SINGLE PRODUCT =====================
@@ -80,31 +93,54 @@ exports.createProduct = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: errors.array(),
+      });
+    }
+    console.log('req',req.body);
+    const productData = { ...req.body };   // ✅ FIXED
+
+    // Clean up images field if frontend sends it as a string
+    if (typeof productData.images === "string") {
+      delete productData.images;
     }
 
-    const productData = req.body;
+    // Handle uploaded images
     if (req.files && req.files.length > 0) {
       productData.images = req.files.map((file, index) => ({
         url: `/uploads/products/${file.filename}`,
         alt: productData.name,
-        isPrimary: index === 0
+        isPrimary: index === 0,
       }));
     }
+
     productData.supplier = req.user._id;
 
-    const existing = await Product.findOne({ sku: productData.sku.toUpperCase() });
+    // Check for duplicate SKU
+    const existing = await Product.findOne({
+      sku: productData.sku.toUpperCase(),
+    });
     if (existing) {
-      return res.status(400).json({ success: false, message: 'Product with this SKU already exists' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Product with this SKU already exists" });
     }
 
     const product = await Product.create(productData);
-    res.status(201).json({ success: true, message: 'Product created successfully', product });
+    res.status(201).json({
+      success: true,
+      message: "Product created successfully",
+      product,
+    });
   } catch (error) {
-    console.error('Create product error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Create product error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
+
 
 // ===================== UPDATE PRODUCT =====================
 exports.updateProduct = async (req, res) => {
@@ -160,8 +196,7 @@ exports.deleteProduct = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this product' });
     }
 
-    product.isActive = false;
-    await product.save();
+    await Product.findByIdAndDelete(req.params.id);
 
     res.json({ success: true, message: 'Product deleted successfully' });
   } catch (error) {

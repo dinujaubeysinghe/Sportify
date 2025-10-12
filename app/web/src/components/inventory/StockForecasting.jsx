@@ -51,44 +51,9 @@ const StockForecasting = () => {
 
   // Sample data for demonstration (replace with real API data)
   const sampleForecastData = [
-    { date: '2024-01-01', current: 100, predicted: 95, demand: 5 },
-    { date: '2024-01-02', current: 95, predicted: 88, demand: 7 },
-    { date: '2024-01-03', current: 88, predicted: 82, demand: 6 },
-    { date: '2024-01-04', current: 82, predicted: 75, demand: 7 },
-    { date: '2024-01-05', current: 75, predicted: 68, demand: 7 },
-    { date: '2024-01-06', current: 68, predicted: 60, demand: 8 },
-    { date: '2024-01-07', current: 60, predicted: 52, demand: 8 },
-    { date: '2024-01-08', current: 52, predicted: 45, demand: 7 },
-    { date: '2024-01-09', current: 45, predicted: 38, demand: 7 },
-    { date: '2024-01-10', current: 38, predicted: 30, demand: 8 }
   ];
 
-  const sampleProductForecasts = [
-    {
-      product: { name: 'Nike Air Max', sku: 'NIKE001' },
-      currentStock: 45,
-      predictedStock: 12,
-      daysUntilLowStock: 8,
-      recommendedOrder: 50,
-      confidence: 85
-    },
-    {
-      product: { name: 'Adidas Football', sku: 'ADIDAS001' },
-      currentStock: 23,
-      predictedStock: 5,
-      daysUntilLowStock: 5,
-      recommendedOrder: 30,
-      confidence: 92
-    },
-    {
-      product: { name: 'Wilson Tennis Racket', sku: 'WILSON001' },
-      currentStock: 67,
-      predictedStock: 45,
-      daysUntilLowStock: 15,
-      recommendedOrder: 25,
-      confidence: 78
-    }
-  ];
+  const sampleProductForecasts = [];
 
   if (isLoading) {
     return (

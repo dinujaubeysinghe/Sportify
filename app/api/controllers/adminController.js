@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const Inventory = require('../models/Inventory');
+const Setting = require('../models/Settings'); // Import the new model
 const sendEmail = require('../utils/sendEmail');
 const {supplierApprovalTemplate} = require('../emails/emailTemplates');
 
@@ -187,39 +188,48 @@ exports.createStaff = async (req, res) => {
   }
 };
 
+// ===================== GET SETTINGS (DYNAMIC) =====================
 exports.getSettings = async (req, res) => {
-  try {
-    const settings = {
-      siteName: 'Sportify',
-      siteDescription: 'Your one-stop shop for sports equipment',
-      currency: 'USD',
-      taxRate: 8,
-      shippingRates: { standard: 5.99, express: 12.99, overnight: 24.99 },
-      lowStockThreshold: 5,
-      autoApproveSuppliers: false,
-      requireEmailVerification: true,
-      allowGuestCheckout: false
-    };
+  try {
+    // Use the static method to ensure the settings document exists or is created
+    const settings = await Setting.getGlobalSettings();
 
-    res.json({ success: true, settings });
-  } catch (error) {
-    console.error('Get settings error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+    res.json({ success: true, settings });
+  } catch (error) {
+    console.error('Get settings error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 };
 
+// ===================== UPDATE SETTINGS (DYNAMIC) =====================
 exports.updateSettings = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
+    
+    // Find the single settings document and update it with request body data
+    const updatedSettings = await Setting.findOneAndUpdate(
+        { singletonId: 'GLOBAL_SETTINGS' },
+        { $set: req.body },
+        { new: true, runValidators: true } // Return the new document and run Mongoose validators
+    );
 
-    res.json({ success: true, message: 'Settings updated successfully' });
-  } catch (error) {
-    console.error('Update settings error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+    if (!updatedSettings) {
+        return res.status(404).json({ success: false, message: 'Settings document not found.' });
+    }
+
+    res.json({ success: true, message: 'Settings updated successfully', settings: updatedSettings });
+  } catch (error) {
+    console.error('Update settings error:', error);
+    // Check for validation errors from Mongoose
+    if (error.name === 'ValidationError') {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 };
-
 exports.getReports = async (req, res) => {
   try {
     const { type, startDate, endDate } = req.query;

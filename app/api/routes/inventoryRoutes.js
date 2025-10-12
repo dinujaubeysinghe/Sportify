@@ -120,4 +120,11 @@ router.post(
   inventoryController.releaseReservedStock
 );
 
+router.delete(
+  '/delete/:id',
+  protect,
+  authorize('supplier','admin','staff'),
+  inventoryController.deleteStock
+)
+
 module.exports = router;

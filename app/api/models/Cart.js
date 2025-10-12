@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const Setting = require('./Settings'); 
+
 
 const cartItemSchema = new mongoose.Schema({
   product: {
@@ -73,30 +75,34 @@ const cartSchema = new mongoose.Schema({
 });
 
 // Calculate totals before saving
-cartSchema.pre('save', function(next) {
-  let subtotal = 0;
-  
-  this.items.forEach(item => {
-    subtotal += item.price * item.quantity;
-  });
-  
-  // Apply discount
-  let discountAmount = 0;
-  if (this.appliedDiscount) {
-    if (this.appliedDiscount.percentage) {
-      discountAmount = subtotal * (this.appliedDiscount.percentage / 100);
-    } else if (this.appliedDiscount.amount) {
-      discountAmount = this.appliedDiscount.amount;
-    }
-  }
-  
-  // Calculate tax (assuming 8% tax rate)
-  this.tax = (subtotal - discountAmount) * 0.08;
-  
-  // Calculate total
-  this.total = subtotal - discountAmount + this.tax + this.shippingCost;
-  
-  next();
+cartSchema.pre('save', async function(next) {
+    // 1. Fetch settings and calculate subtotal
+    const globalSettings = await Setting.getGlobalSettings();
+    const globalTaxRate = globalSettings.taxRate / 100; // e.g., 8 / 100 = 0.08
+
+    let subtotal = 0;
+  
+    this.items.forEach(item => {
+        subtotal += item.price * item.quantity;
+    });
+  
+    // 2. Apply discount
+    let discountAmount = 0;
+    if (this.appliedDiscount) {
+        if (this.appliedDiscount.percentage) {
+            discountAmount = subtotal * (this.appliedDiscount.percentage / 100);
+        } else if (this.appliedDiscount.amount) {
+            discountAmount = this.appliedDiscount.amount;
+        }
+    }
+  
+    // 3. Calculate tax using the dynamic globalTaxRate
+    this.tax = (subtotal - discountAmount) * globalTaxRate; // <-- CORRECTED LINE
+  
+    // 4. Calculate total
+    this.total = subtotal - discountAmount + this.tax + this.shippingCost;
+  
+    next();
 });
 
 // Method to add item to cart

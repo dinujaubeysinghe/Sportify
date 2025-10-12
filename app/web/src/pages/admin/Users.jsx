@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { Helmet } from 'react-helmet-async';
+import logo from "/SportifyLogo.png";
 import { 
   Users, 
   UserPlus, 
@@ -18,6 +19,12 @@ import {
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+import { Pie, Line } from "react-chartjs-2";
+
 
 const AdminUsers = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,11 +33,12 @@ const AdminUsers = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
-    role: 'customer',
+    role: 'staff',
     phone: '',
     isActive: true
   });
@@ -76,7 +84,7 @@ const AdminUsers = () => {
           firstName: '',
           lastName: '',
           email: '',
-          role: 'customer',
+          role: 'staff',
           phone: '',
           isActive: true
         });
@@ -89,7 +97,6 @@ const AdminUsers = () => {
   );
 
   const users = usersData?.users || [];
-
   // Filter users
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -123,17 +130,207 @@ const AdminUsers = () => {
     });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (formData.role === 'staff') {
-      createStaffMutation.mutate({
-        ...formData,
-        employeeId: `EMP${Date.now()}`,
-        department: 'General',
-        hireDate: new Date().toISOString()
-      });
+// Handle form input changes
+const handleChange = (e) => {
+  const { name, value, type, checked } = e.target;
+
+  const updatedValue = type === "checkbox" ? checked : value;
+
+  setFormData((prev) => ({
+    ...prev,
+    [name]: updatedValue,
+  }));
+
+  // Real-time validation
+  setErrors((prev) => {
+    const newErrors = { ...prev };
+
+    switch (name) {
+      case "firstName":
+        if (!updatedValue.trim()) newErrors.firstName = "First name is required";
+        else delete newErrors.firstName;
+        break;
+
+      case "lastName":
+        if (!updatedValue.trim()) newErrors.lastName = "Last name is required";
+        else delete newErrors.lastName;
+        break;
+
+      case "email":
+        if (!/\S+@\S+\.\S+/.test(updatedValue)) newErrors.email = "Invalid email address";
+        else delete newErrors.email;
+        break;
+
+      case "password":
+        if (!updatedValue || updatedValue.length < 6) newErrors.password = "Password must be at least 6 characters";
+        else delete newErrors.password;
+        break;
+
+      case "phone":
+        if (!/^\d{10}$/.test(updatedValue)) newErrors.phone = "Phone number must be exactly 10 digits";
+        else delete newErrors.phone;
+        break;
+
+      case "employeeId":
+        if (!updatedValue.trim()) newErrors.employeeId = "Employee ID is required";
+        else delete newErrors.employeeId;
+        break;
+
+      case "department":
+        if (!updatedValue.trim()) newErrors.department = "Department is required";
+        else delete newErrors.department;
+        break;
+
+      case "hireDate":
+        if (!updatedValue) newErrors.hireDate = "Hire date is required";
+        else if (new Date(updatedValue) > new Date()) newErrors.hireDate = "Hire date cannot be in the future";
+        else delete newErrors.hireDate;
+        break;
+
+      default:
+        break;
     }
-  };
+
+    return newErrors;
+  });
+};
+
+
+// Submit handler
+const handleSubmit = (e) => {
+  e.preventDefault();
+
+  // Stop if there are errors
+  if (Object.keys(errors).length > 0) {
+    toast.error("Please fix the errors before submitting");
+    return;
+  }
+
+  // If valid, submit staff creation
+  if (formData.role === "staff") {
+    createStaffMutation.mutate({
+      ...formData,
+      role: "staff",
+    });
+  }
+};
+
+
+
+// Generate PDF Report
+const generatePDFReport = () => {
+  const doc = new jsPDF("p", "pt");
+
+  // Add Logo + Title
+  doc.addImage(logo, "PNG", 40, 20, 100, 40); // (x, y, w, h)
+  doc.setFontSize(16);
+  doc.text("Sportify - User Analysis Report", 160, 45); // Title aligned with logo
+  doc.setFontSize(10);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 160, 60);
+
+  // Users table
+  autoTable(doc, {
+    startY: 90,
+    head: [["Name", "Email", "Role", "Status", "Joined"]],
+    body: users.map((u) => [
+      `${u.firstName} ${u.lastName}`,
+      u.email,
+      u.role,
+      u.isActive ? "Active" : "Inactive",
+      new Date(u.createdAt).toLocaleDateString(),
+    ]),
+    theme: "grid",
+    headStyles: { fillColor: [99, 102, 241] }, // Tailwind Indigo-500
+    styles: { fontSize: 9 },
+  });
+
+  // Add Pie Chart page
+  const pieCanvas = document.getElementById("pieChart");
+  if (pieCanvas) {
+    doc.addPage();
+    doc.setFontSize(14);
+    doc.text("Roles Distribution", 40, 40);
+    doc.addImage(pieCanvas.toDataURL("image/png"), "PNG", 40, 60, 500, 300);
+  }
+
+  // Add Line Chart page
+  const lineCanvas = document.getElementById("lineChart");
+  if (lineCanvas) {
+    doc.addPage();
+    doc.setFontSize(14);
+    doc.text("Registrations Over Time", 40, 40);
+    doc.addImage(lineCanvas.toDataURL("image/png"), "PNG", 40, 60, 500, 300);
+  }
+
+  // Footer only on last page
+  const pageHeight = doc.internal.pageSize.height;
+  const totalPages = doc.getNumberOfPages();
+
+  doc.setPage(totalPages); // Go to last page
+  doc.setFontSize(10);
+  doc.text(`Report generated on: ${new Date().toLocaleDateString()}`, 40, pageHeight - 60);
+  doc.text("Authorized Signature: ____________________", 40, pageHeight - 40);
+
+  // Save file
+  doc.save(`user-report-${Date.now()}.pdf`);
+};
+
+// Generate Excel Report
+const generateExcelReport = () => {
+  const worksheet = XLSX.utils.json_to_sheet(
+    users.map(u => ({
+      Name: `${u.firstName} ${u.lastName}`,
+      Email: u.email,
+      Role: u.role,
+      Status: u.isActive ? 'Active' : 'Inactive',
+      Joined: new Date(u.createdAt).toLocaleDateString()
+    }))
+  );
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+
+  const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  saveAs(new Blob([excelBuffer], { type: "application/octet-stream" }), `user-report-${Date.now()}.xlsx`);
+};
+
+// Role distribution (Pie Chart)
+const roleCounts = users.reduce((acc, u) => {
+  acc[u.role] = (acc[u.role] || 0) + 1;
+  return acc;
+}, {});
+
+const roleData = {
+  labels: Object.keys(roleCounts),
+  datasets: [
+    {
+      label: "Roles",
+      data: Object.values(roleCounts),
+      backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4CAF50"],
+    },
+  ],
+};
+
+// Registrations per date (Line Chart)
+const registrationsByDate = users.reduce((acc, u) => {
+  const date = new Date(u.createdAt).toLocaleDateString();
+  acc[date] = (acc[date] || 0) + 1;
+  return acc;
+}, {});
+
+const registrationData = {
+  labels: Object.keys(registrationsByDate),
+  datasets: [
+    {
+      label: "Registrations",
+      data: Object.values(registrationsByDate),
+      borderColor: "#36A2EB",
+      fill: false,
+      tension: 0.2,
+    },
+  ],
+};
+
 
   const getRoleColor = (role) => {
     switch (role) {
@@ -238,6 +435,14 @@ const AdminUsers = () => {
                 </div>
               </div>
             </div>
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold mb-4">Roles Distribution</h3>
+                <Pie id="pieChart" data={roleData} />
+              </div>
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold mb-4">Registrations Over Time</h3>
+                <Line id="lineChart" data={registrationData} />
+              </div>
           </div>
 
           {/* Filters and Search */}
@@ -367,6 +572,22 @@ const AdminUsers = () => {
                 </tbody>
               </table>
             </div>
+
+            <div className="flex gap-3 mb-6">
+              <button
+                onClick={generatePDFReport}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Download PDF Report
+              </button>
+              <button
+                onClick={generateExcelReport}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Download Excel Report
+              </button>
+            </div>
+
           </div>
 
           {filteredUsers.length === 0 && (
@@ -383,77 +604,116 @@ const AdminUsers = () => {
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                    <button
+            type="button"
+            onClick={() => setShowAddModal(false)}
+            className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+          >
+            ✕
+          </button>
             <h2 className="text-xl font-bold text-gray-900 mb-4">Add New Staff Member</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={createStaffMutation.isLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  {createStaffMutation.isLoading ? 'Creating...' : 'Create Staff'}
-                </button>
-              </div>
+            <form onSubmit={handleSubmit} className="space-y-2">
+              <input
+                type="text"
+                name="firstName"
+                placeholder="First Name"
+                value={formData.firstName}
+                onChange={handleChange}
+                className={`w-full p-2 border rounded ${errors.firstName ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.firstName && <p className="text-red-500 text-sm">{errors.firstName}</p>}
+
+              <input
+                type="text"
+                name="lastName"
+                placeholder="Last Name"
+                value={formData.lastName}
+                onChange={handleChange}
+                className={`w-full p-2 border rounded ${errors.lastName ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.lastName && <p className="text-red-500 text-sm">{errors.lastName}</p>}
+
+              <input
+                type="email"
+                name="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={handleChange}
+                className={`w-full p-2 border rounded ${errors.email ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
+
+              <input
+                type="password"
+                name="password"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleChange}
+                className={`w-full p-2 border rounded ${errors.password ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
+
+              <input
+                type="number"
+                name="phone"
+                placeholder="Phone (10 digits)"
+                value={formData.phone}
+                onChange={handleChange}
+                maxLength={10}
+                pattern="\d{10}"
+                className={`w-full p-2 border rounded ${errors.phone ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.phone && <p className="text-red-500 text-sm">{errors.phone}</p>}
+
+              <input
+                type="text"
+                name="employeeId"
+                placeholder="Employee ID"
+                value={formData.employeeId}
+                onChange={handleChange}
+                className={`w-full p-2 border rounded ${errors.employeeId ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.employeeId && <p className="text-red-500 text-sm">{errors.employeeId}</p>}
+
+              <input
+                type="text"
+                name="department"
+                placeholder="Department"
+                value={formData.department}
+                onChange={handleChange}
+                className={`w-full p-2 border rounded ${errors.department ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.department && <p className="text-red-500 text-sm">{errors.department}</p>}
+
+              <input
+                type="date"
+                name="hireDate"
+                value={formData.hireDate}
+                onChange={handleChange}
+                max={new Date().toISOString().split("T")[0]}
+                className={`w-full p-2 border rounded ${errors.hireDate ? 'border-red-500' : ''}`}
+                required
+              />
+              {errors.hireDate && <p className="text-red-500 text-sm">{errors.hireDate}</p>}
+
+              <button
+                type="submit"
+                className="w-full bg-blue-600 text-white p-2 rounded mt-2"
+              >
+                Add Staff
+              </button>
             </form>
           </div>
         </div>
       )}
+
     </>
   );
 };

@@ -8,7 +8,8 @@ const {
   getBrands,
   getBrand,
   updateBrand,
-  deleteBrand
+  deleteBrand,
+  activeBrand
 } = require('../controllers/brandController');
 
 const router = express.Router();
@@ -21,6 +22,8 @@ router.post('/', protect, upload.single('logo'), [
 router.get('/', getBrands);
 router.get('/:id', getBrand);
 router.put('/:id', protect, upload.single('logo'), updateBrand);
+router.put('/activate/:id', protect, activeBrand);
 router.delete('/:id', protect, deleteBrand);
+
 
 module.exports = router;

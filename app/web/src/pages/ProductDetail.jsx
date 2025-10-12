@@ -20,6 +20,7 @@ import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import toast from 'react-hot-toast';
+import useSettings from '../hooks/useSettings'; // Adjust path as needed
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -32,6 +33,7 @@ const ProductDetail = () => {
   const [selectedColor, setSelectedColor] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
+    const { settings, isLoading: settingsLoading } = useSettings();
 
   // Fetch product details
   const { data: product, isLoading, error } = useQuery(
@@ -106,12 +108,15 @@ const ProductDetail = () => {
     }
   };
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'LKR'
-    }).format(price);
-  };
+    const currencyCode = settings?.currency || 'LKR'; 
+
+    // FIX: Dynamic currency code
+    const formatPrice = (price) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode // <--- DYNAMICALLY USE SETTINGS CURRENCY
+      }).format(price);
+    };
 
   const getDiscountPrice = () => {
     if (product?.discount > 0) {
@@ -172,7 +177,7 @@ const ProductDetail = () => {
               onClick={() => navigate(`/products?category=${product.category}`)}
               className="hover:text-blue-600 capitalize"
             >
-              {product.category.name}
+              {product.category?.name}
             </button>
             <span>/</span>
             <span className="text-gray-900">{product.name}</span>
@@ -182,11 +187,11 @@ const ProductDetail = () => {
             {/* Product Images */}
             <div className="space-y-4">
               {/* Main Image */}
-              <div className="aspect-square bg-white rounded-lg overflow-hidden shadow-sm">
+              <div className="aspect-auto bg-white rounded-lg overflow-hidden shadow-sm">
                 <img
                   src={`${import.meta.env.VITE_SERVER_URL}${product.images?.[selectedImage]?.url || '/placeholder-product.jpg'}`}
                   alt={product.name}
-                  className="w-full h-full object-cover"
+                  className="w-9/12 h-9/12 object-fill"
                 />
               </div>
 
@@ -218,7 +223,7 @@ const ProductDetail = () => {
               <div>
                 <div className="flex items-center space-x-2 mb-2">
                   <span className="text-sm text-gray-500 capitalize">
-                    {product.category.name}
+                    {product.category?.name}
                   </span>
                   {isOnSale && (
                     <span className="bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded">
@@ -231,7 +236,7 @@ const ProductDetail = () => {
                 </h1>
                 <p className="text-lg text-gray-600">
                   {console.log(product)}
-                  by {product.brand.name}
+                  by {product.brand?.name}
                 </p>
               </div>
 
@@ -364,12 +369,7 @@ const ProductDetail = () => {
                     <ShoppingCart className="h-5 w-5 mr-2" />
                     {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
                   </button>
-                  <button
-                    onClick={handleWishlist}
-                    className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50"
-                  >
-                    <Heart className="h-5 w-5" />
-                  </button>
+
                   <button
                     onClick={handleShare}
                     className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -441,11 +441,11 @@ const ProductDetail = () => {
                       </div>
                       <div className="flex justify-between">
                         <dt className="text-gray-600">Brand</dt>
-                        <dd className="font-medium">{product.brand.name}</dd>
+                        <dd className="font-medium">{product.brand?.name}</dd>
                       </div>
                       <div className="flex justify-between">
                         <dt className="text-gray-600">Category</dt>
-                        <dd className="font-medium capitalize">{product.category.name}</dd>
+                        <dd className="font-medium capitalize">{product.category?.name}</dd>
                       </div>
                       {product.weight && (
                         <div className="flex justify-between">
@@ -518,7 +518,7 @@ const ProductDetail = () => {
                       <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">
                         {relatedProduct.name}
                       </h3>
-                      <p className="text-sm text-gray-600 mb-2">{relatedProduct.brand.name}</p>
+                      <p className="text-sm text-gray-600 mb-2">{relatedProduct.brand?.name}</p>
                       <p className="text-lg font-bold text-gray-900">
                         {formatPrice(relatedProduct.price)}
                       </p>

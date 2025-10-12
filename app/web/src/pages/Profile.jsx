@@ -15,16 +15,19 @@ import {
   Heart,
   Settings,
   Bell,
-  Shield
+  Shield,
+  Trash,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import toast from 'react-hot-toast';
 import Orders from './Orders';
+import Swal from 'sweetalert2';
+
 
 
 const Profile = () => {
-  const { user, updateProfile, isLoading } = useAuth();
+  const { user, updateProfile, isLoading,changePassword,deleteAccount  } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   
@@ -50,6 +53,7 @@ const Profile = () => {
   });
 
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -95,38 +99,70 @@ const Profile = () => {
     }
   };
 
-  const handleChangePassword = async (e) => {
+const handleChangePassword = async (e) => {
+  e.preventDefault();
+
+  const { currentPassword, newPassword, confirmPassword } = passwordData;
+
+  if (newPassword !== confirmPassword) {
+    toast.error('New passwords do not match');
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    toast.error('Password must be at least 6 characters long');
+    return;
+  }
+
+  setIsUpdating(true);
+  try {
+    const res = await changePassword(currentPassword,newPassword);
+
+    toast.success(res.data.message || "Password changed successfully");
+    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  } catch (error) {
+    toast.error(response?.data?.message|| "Failed to change password");
+  } finally {
+    setIsUpdating(false);
+  }
+};
+
+  const handleAccountDelete = async (e) => {
     e.preventDefault();
-    
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('New passwords do not match');
-      return;
-    }
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "This action will permanently delete your account!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+    });
 
-    if (passwordData.newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters long');
-      return;
-    }
-
-    setIsUpdating(true);
-    try {
-      // In a real app, you would call your change password API here
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success('Password changed successfully');
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (error) {
-      toast.error('Failed to change password');
-    } finally {
-      setIsUpdating(false);
+    if (result.isConfirmed) {
+      setIsDeleting(true);
+      try {
+        const res = await deleteAccount(); 
+        if (res.success) {
+          toast.success('Account deleted successfully');
+          window.location.href = '/'; // redirect after deletion
+        } else {
+          toast.error(res.message || 'Failed to delete account');
+        }
+      } catch (error) {
+        toast.error(error?.message || 'Failed to delete account');
+      } finally {
+        setIsDeleting(false);
+      }
     }
   };
+
+
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'security', label: 'Security', icon: Shield },
-    { id: 'orders', label: 'Orders', icon: ShoppingBag },
-    { id: 'wishlist', label: 'Wishlist', icon: Heart },
-    { id: 'settings', label: 'Settings', icon: Settings }
   ];
 
   if (isLoading) {
@@ -278,9 +314,19 @@ const Profile = () => {
                           Phone
                         </label>
                         <input
-                          type="tel"
+                          type="number"
                           value={profileData.phone}
-                          onChange={(e) => handleProfileChange('phone', e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            // ✅ only allow up to 10 digits
+                            if (val.length <= 10) {
+                              handleProfileChange('phone', val);
+                            }
+                          }}
+                          onInput={(e) => {
+                            // ✅ prevent typing 'e', '+', '-', '.', etc.
+                            e.target.value = e.target.value.replace(/\D/g, '');
+                          }}
                           disabled={!isEditing}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                         />
@@ -343,9 +389,7 @@ const Profile = () => {
                           disabled={!isEditing}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                         >
-                          <option value="United States">United States</option>
-                          <option value="Canada">Canada</option>
-                          <option value="United Kingdom">United Kingdom</option>
+                          <option value="Sri Lanka">Sri Lanka</option>
                         </select>
                       </div>
                       <div className="md:col-span-2">
@@ -368,6 +412,7 @@ const Profile = () => {
                 {/* Security Tab */}
                 {activeTab === 'security' && (
                   <div className="p-6">
+                    <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-6">Security Settings</h2>
                     
                     <form onSubmit={handleChangePassword} className="space-y-6">
@@ -419,7 +464,21 @@ const Profile = () => {
                         {isUpdating ? 'Updating...' : 'Change Password'}
                       </button>
                     </form>
+
+                    </div>
+                    <div className='pt-8'>
+                      <h4 className="text-lg font-semibold text-gray-900 mb-6">Account Delete</h4>
+                        <button
+                          onClick={handleAccountDelete} // ✅ use the handler with Swal confirmation
+                          disabled={isDeleting}
+                          className="flex items-center px-6 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50"
+                        >
+                          <Trash className="w-4 h-4 mr-2" />
+                          {isDeleting ? 'Deleting...' : 'Delete'}
+                        </button>
+                    </div>
                   </div>
+                  
                 )}
 
                 {/* Orders Tab */}

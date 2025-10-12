@@ -17,6 +17,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { useForm } from 'react-hook-form';
+import useSettings from '../../hooks/useSettings'; // Adjust path as needed
 
 const AdminProducts = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,6 +29,7 @@ const AdminProducts = () => {
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
   const queryClient = useQueryClient();
+    const { settings, isLoading: settingsLoading } = useSettings();
 
   // Forms
   const { register, handleSubmit, reset: resetCreate, formState: { errors: createErrors } } = useForm();
@@ -184,12 +186,15 @@ const AdminProducts = () => {
     setShowEditModal(true);
   };
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'LKR'
-    }).format(price);
-  };
+    const currencyCode = settings?.currency || 'LKR'; 
+
+    // FIX: Dynamic currency code
+    const formatPrice = (price) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode // <--- DYNAMICALLY USE SETTINGS CURRENCY
+      }).format(price);
+    };
 
   const getStatusBadge = (isActive) => {
     return isActive ? (
@@ -243,13 +248,13 @@ const AdminProducts = () => {
                 <h1 className="text-3xl font-bold text-gray-900">Manage Products</h1>
                 <p className="text-gray-600 mt-2">Add, edit, and manage your product catalog</p>
               </div>
-              <button 
+              {/* <button 
                 onClick={() => setShowAddModal(true)}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Add Product
-              </button>
+              </button> */}
             </div>
           </div>
 
@@ -325,13 +330,13 @@ const AdminProducts = () => {
               <div className="text-center py-12">
                 <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
-                <p className="text-gray-600 mb-4">Get started by adding your first product</p>
+                {/* <p className="text-gray-600 mb-4">Get started by adding your first product</p>
                 <button
                   onClick={() => setShowAddModal(true)}
                   className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   Add Product
-                </button>
+                </button> */}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -404,12 +409,7 @@ const AdminProducts = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => handleEdit(product)}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
+                            
                             <button
                               onClick={() => handleToggleStatus(product._id, product.isActive)}
                               className="text-yellow-600 hover:text-yellow-900"
