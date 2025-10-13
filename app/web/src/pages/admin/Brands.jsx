@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { useForm } from 'react-hook-form'; 
 import { 
   Plus, 
   Edit, 
   Trash2, 
   Search, 
-  Filter,
   Image as ImageIcon,
-  Eye,
-  EyeOff,
   Save,
   X
 } from 'lucide-react';
@@ -21,13 +19,18 @@ const AdminBrands = () => {
   const [editingBrand, setEditingBrand] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterActive, setFilterActive] = useState('all');
-  const [formData, setFormData] = useState({
-    name: '',
-    logo: null
-  });
-
+  
+  const [logoFile, setLogoFile] = useState(null); 
+  
   const queryClient = useQueryClient();
 
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
+    mode: 'onChange', 
+    defaultValues: { name: '' }
+  });
+  
+  const watchedLogo = watch('logo'); 
+  
   // Fetch brands
   const { data: brandsData, isLoading } = useQuery({
     queryKey: ['admin-brands'],
@@ -37,24 +40,30 @@ const AdminBrands = () => {
     }
   });
 
+  // Helper function to process form data into FormData object
+  const createFormData = (data, logoFileObject) => {
+    const formData = new FormData();
+    formData.append('name', data.name);
+    if (logoFileObject) {
+      formData.append('logo', logoFileObject);
+    }
+    return formData;
+  };
+
   // Create brand mutation
   const createMutation = useMutation({
-    mutationFn: async (formData) => {
-      const data = new FormData();
-      data.append('name', formData.name);
-      if (formData.logo) {
-        data.append('logo', formData.logo);
-      }
-
-      const response = await axios.post('/brands', data, {
+    mutationFn: async (data) => {
+      const formData = createFormData(data, logoFile);
+      
+      const response = await axios.post('/brands', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-brands']);
-      toast.success('Brand created successfully!');
-      resetForm();
+      toast.success('Brand created successfully! 🎉');
+      closeModalAndResetForm();
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Failed to create brand');
@@ -63,22 +72,18 @@ const AdminBrands = () => {
 
   // Update brand mutation
   const updateMutation = useMutation({
-    mutationFn: async ({ id, formData }) => {
-      const data = new FormData();
-      data.append('name', formData.name);
-      if (formData.logo) {
-        data.append('logo', formData.logo);
-      }
-
-      const response = await axios.put(`/brands/${id}`, data, {
+    mutationFn: async ({ id, data }) => {
+      const formData = createFormData(data, logoFile);
+      
+      const response = await axios.put(`/brands/${id}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-brands']);
-      toast.success('Brand updated successfully!');
-      resetForm();
+      toast.success('Brand updated successfully! ✅');
+      closeModalAndResetForm();
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Failed to update brand');
@@ -93,39 +98,44 @@ const AdminBrands = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-brands']);
-      toast.success('Brand deleted successfully!');
+      toast.success('Brand deleted successfully! 🗑️');
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Failed to delete brand');
     }
   });
 
-  const resetForm = () => {
-    setFormData({ name: '', logo: null });
+  // Activate brand handler
+  const handleActivate = async (id) => {
+    try {
+      await axios.put(`/brands/activate/${id}`);
+      toast.success('Brand activated successfully! ✨');
+      queryClient.invalidateQueries(['admin-brands']);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to activate brand');
+    }
+  };
+
+
+  const closeModalAndResetForm = () => {
+    reset({ name: '' }); 
+    setLogoFile(null); 
     setEditingBrand(null);
     setIsModalOpen(false);
   };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.name.trim()) {
-      toast.error('Brand name is required');
-      return;
-    }
-
+  
+  const onSubmit = (data) => {
     if (editingBrand) {
-      updateMutation.mutate({ id: editingBrand._id, formData });
+      updateMutation.mutate({ id: editingBrand._id, data });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(data);
     }
   };
 
   const handleEdit = (brand) => {
     setEditingBrand(brand);
-    setFormData({
-      name: brand.name,
-      logo: null
-    });
+    reset({ name: brand.name }); 
+    setLogoFile(null); 
     setIsModalOpen(true);
   };
 
@@ -134,21 +144,15 @@ const AdminBrands = () => {
       deleteMutation.mutate(id);
     }
   };
-  const handleActivate = async (id) => {
-    try {
-      const response = await axios.put(`/brands/activate/${id}`);
-      toast.success('Brand activated successfully!');
-      queryClient.invalidateQueries(['admin-brands']);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to activate brand');
-    }
-  };
-
-
+  
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData(prev => ({ ...prev, logo: file }));
+      setLogoFile(file);
+      setValue('logo', file); 
+    } else {
+      setLogoFile(null);
+      setValue('logo', null); 
     }
   };
 
@@ -169,6 +173,8 @@ const AdminBrands = () => {
     );
   }
 
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -178,7 +184,10 @@ const AdminBrands = () => {
           <p className="text-gray-600">Manage product brands</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            closeModalAndResetForm(); 
+            setIsModalOpen(true);
+          }}
           className="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus className="w-5 h-5 mr-2" />
@@ -252,27 +261,29 @@ const AdminBrands = () => {
                   <button
                     onClick={() => handleEdit(brand)}
                     className="p-1 text-blue-600 hover:bg-blue-100 rounded"
+                    title="Edit Brand"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
-                    {brand.isActive ? (
-                      <button
-                        onClick={() => handleDelete(brand._id)}
-                        className="p-1 text-red-600 hover:bg-red-100 rounded"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleActivate(brand._id)}
-                        className="p-1 text-green-600 hover:bg-green-100 rounded"
-                      >
-                        Activate
-                      </button>
-                    )}
-
-
-                  
+                    
+                  {/* Action Button: Delete (if active) or Activate (if inactive) */}
+                  {brand.isActive ? (
+                    <button
+                      onClick={() => handleDelete(brand._id)}
+                      className="p-1 text-red-600 hover:bg-red-100 rounded"
+                      title="Delete/Deactivate Brand"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleActivate(brand._id)}
+                      className="px-2 py-1 text-xs text-green-600 hover:bg-green-100 rounded"
+                      title="Activate Brand"
+                    >
+                      Activate
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -298,62 +309,80 @@ const AdminBrands = () => {
                   {editingBrand ? 'Edit Brand' : 'Add Brand'}
                 </h2>
                 <button
-                  onClick={resetForm}
+                  onClick={closeModalAndResetForm}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                     Brand Name *
                   </label>
                   <input
+                    id="name"
                     type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    maxLength={20} 
+                    {...register('name', {
+                      required: 'Brand name is required',
+                      minLength: { value: 2, message: 'Must be at least 2 characters' },
+                      maxLength: { value: 20, message: 'Must be less than 20 characters' }
+                    })}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
                     placeholder="Enter brand name"
-                    required
                   />
+                  {errors.name && <p className="text-sm text-red-600 mt-1">{errors.name.message}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="logo" className="block text-sm font-medium text-gray-700 mb-1">
                     Brand Logo
                   </label>
                   <input
+                    id="logo"
                     type="file"
                     accept="image/*"
+
                     onChange={handleLogoChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
-                  {formData.logo && (
+                  
+                  {/* Display existing logo or selected file name */}
+                  {(editingBrand?.logo?.url && !logoFile) && (
                     <p className="text-sm text-gray-600 mt-1">
-                      Selected: {formData.logo.name}
+                      Current Logo: <span className='font-semibold text-blue-600'>({editingBrand.logo.alt || 'Existing file'})</span>
                     </p>
                   )}
+                  {logoFile && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      Selected: <span className='font-semibold text-green-600'>{logoFile.name}</span>
+                    </p>
+                  )}
+                  {errors.logo && <p className="text-sm text-red-600 mt-1">{errors.logo.message}</p>}
                 </div>
 
                 <div className="flex gap-3 pt-4">
                   <button
                     type="button"
-                    onClick={resetForm}
+                    onClick={closeModalAndResetForm}
                     className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    disabled={isPending}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center"
                   >
-                    {createMutation.isPending || updateMutation.isPending ? (
+                    {isPending ? (
                       <LoadingSpinner size="sm" />
                     ) : (
-                      editingBrand ? 'Update' : 'Create'
+                      <>
+                        <Save className="w-5 h-5 mr-2" />
+                        {editingBrand ? 'Update' : 'Create'}
+                      </>
                     )}
                   </button>
                 </div>

@@ -177,13 +177,17 @@ const orderCancelledTemplate = (orderDetails, name = '', reason = '') => {
 // ---------------------
 // Supplier Flow Templates
 // ---------------------
-const supplierApprovalTemplate = (supplierName = '', approved = true, notes = '') => {
+const supplierApprovalTemplate = (fullName, isApprovedStatus, notes = '') => {
+  const statusText = isApprovedStatus ? 'approved' : 'rejected';
+  const actionText = isApprovedStatus ? '<p>You can now start adding products to the platform.</p>' : '<p>Please contact support for more information on the rejection.</p>';
+
   const body = `
-    <p>Hello ${supplierName},</p>
-    <p>Your supplier account has been <strong>${approved ? 'approved' : 'rejected'}</strong>.</p>
+    <p>Hello ${fullName},</p>
+    <p>Your supplier account has been <strong>${statusText}</strong>.</p>
     ${notes ? `<p>Notes from admin: ${notes}</p>` : ''}
-    ${approved ? '<p>You can now start adding products to the platform.</p>' : ''}
+    ${isApprovedStatus ? actionText : ''}
   `;
+  // Assuming emailLayout exists in the scope
   return emailLayout('Supplier Account Status', body);
 };
 

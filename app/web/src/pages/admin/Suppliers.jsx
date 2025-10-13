@@ -9,13 +9,14 @@ import toast from 'react-hot-toast';
 // Status filter options
 const statusFilters = {
     all: { label: 'All', icon: Users, color: 'bg-gray-600', filter: {} },
-    pending: { label: 'Pending Review', icon: Clock, color: 'bg-yellow-600', filter: { isApproved: false, isActive: true } },
-    approved: { label: 'Approved', icon: CheckCircle, color: 'bg-green-600', filter: { isApproved: true, isActive: true } },
-    rejected: { label: 'Rejected / Disabled', icon: XCircle, color: 'bg-red-600', filter: { isApproved: false, isActive: false } },
+    // Using string booleans for clarity for the backend
+    pending: { label: 'Pending Review', icon: Clock, color: 'bg-yellow-600', filter: { isApproved: 'false', isActive: 'true' } }, 
+    approved: { label: 'Approved', icon: CheckCircle, color: 'bg-green-600', filter: { isApproved: 'true', isActive: 'true' } }, 
+    rejected: { label: 'Rejected / Disabled', icon: XCircle, color: 'bg-red-600', filter: { isActive: 'false' } }, 
 };
 
 // ----------------------
-// Supplier Details Modal (New Component)
+// Supplier Details Modal (No changes needed)
 // ----------------------
 const SupplierDetailsModal = ({ supplier, closeModal }) => {
     if (!supplier) return null;
@@ -84,33 +85,46 @@ const SupplierDetailsModal = ({ supplier, closeModal }) => {
 const AdminSuppliers = () => {
     const [currentStatus, setCurrentStatus] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
-    const [selectedSupplier, setSelectedSupplier] = useState(null); // State for selected supplier
-    const [showModal, setShowModal] = useState(false); // State to control modal visibility
+    const [selectedSupplier, setSelectedSupplier] = useState(null);
+    const [showModal, setShowModal] = useState(false);
     const limit = 10;
 
-    // Filter status for display and query key
     const currentFilter = statusFilters[currentStatus];
 
-    // ===== Fetch Suppliers (Same logic as before) =====
+    const handleStatusChange = (statusKey) => {
+        setCurrentStatus(statusKey);
+        setCurrentPage(1); // Reset page when changing filters
+    };
+
+    // ===== Fetch Suppliers with Debug Logging =====
     const { data: suppliersData, isLoading, error, refetch } = useQuery(
         ['suppliers', currentStatus, currentPage],
         async () => {
             const params = new URLSearchParams();
             
-            if (currentStatus === 'approved') {
-                params.append('isApproved', true);
-            } else if (currentStatus === 'pending') {
-                params.append('isApproved', false);
-                params.append('isActive', true);
-            } else if (currentStatus === 'rejected') {
-                params.append('isActive', false);
-            }
+            Object.entries(currentFilter.filter).forEach(([key, value]) => {
+                params.append(key, value);
+            });
             
             params.append('page', currentPage);
             params.append('limit', limit);
 
-            const res = await axios.get(`/suppliers?${params.toString()}`);
+            const requestUrl = `/suppliers?${params.toString()}`;
+            
+
+
+            const res = await axios.get(requestUrl);
+                        // 🐛 DEBUG CODE: Log the request URL to the console
+            console.log("------------------------------------------");
+            console.log(`API Call for Status: ${currentStatus}`);
+            console.log("Request URL:", requestUrl);
+            console.log("------------------------------------------");
+            console.log("Request Data:", res.data.suppliers);
+            console.log("------------------------------------------");
+            
+            // ------------------------------------------
             return res.data;
+            
         },
         { keepPreviousData: true }
     );
@@ -122,9 +136,9 @@ const AdminSuppliers = () => {
     
     // --- Logic Helpers ---
     const getApprovalStatus = (supplier) => {
-        if (supplier.isActive === false && supplier.isApproved === false) return 'Rejected/Disabled';
+        if (supplier.isActive === false) return 'Rejected/Disabled'; 
         if (supplier.isApproved === true) return 'Approved';
-        return 'Pending';
+        return 'Pending'; 
     };
 
     const getStatusBadge = (supplier) => {
@@ -139,9 +153,7 @@ const AdminSuppliers = () => {
     
     const handleApproveReject = async (supplierId, approveStatus) => {
         try {
-            // Note: The backend route is /admin/supplier/:id/status
-            // If approveStatus is true, we set isApproved=true.
-            // If approveStatus is false, we set isApproved=false AND isActive=false (for permanent rejection/disable)
+            const action = approveStatus ? 'approved' : 'disabled';
             
             const updatePayload = {
                 isApproved: approveStatus,
@@ -149,7 +161,7 @@ const AdminSuppliers = () => {
             };
             
             await axios.put(`/admin/supplier/${supplierId}/status`, updatePayload);
-            toast.success(`Supplier ${approveStatus ? 'approved' : 'disabled'} successfully!`);
+            toast.success(`Supplier ${action} successfully!`);
             refetch();
         } catch (err) {
             toast.error(err.response?.data?.message || `Failed to update approval status.`);
@@ -160,7 +172,6 @@ const AdminSuppliers = () => {
         setCurrentPage(page);
     };
     
-    // --- NEW HANDLER ---
     const handleViewDetails = (supplier) => {
         setSelectedSupplier(supplier);
         setShowModal(true);
@@ -175,6 +186,14 @@ const AdminSuppliers = () => {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <LoadingSpinner size="lg" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="min-h-screen flex items-center justify-center text-red-600">
+                Error fetching data. Try refreshing.
             </div>
         );
     }
@@ -208,7 +227,7 @@ const AdminSuppliers = () => {
                             {Object.entries(statusFilters).map(([key, item]) => (
                                 <button
                                     key={key}
-                                    onClick={() => setCurrentStatus(key)}
+                                    onClick={() => handleStatusChange(key)} 
                                     className={`px-4 py-2 rounded-lg text-white font-medium flex items-center transition-all ${item.color} ${currentStatus === key ? 'ring-2 ring-offset-2 ring-blue-500 scale-105' : 'opacity-80 hover:opacity-100'}`}
                                 >
                                     <item.icon className="h-4 w-4 mr-2" />
@@ -250,7 +269,7 @@ const AdminSuppliers = () => {
                                                 <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                                                     <div className="flex justify-center space-x-2">
                                                         <button 
-                                                            onClick={() => handleViewDetails(supplier)} // <-- NEW HANDLER CALL
+                                                            onClick={() => handleViewDetails(supplier)} 
                                                             className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
                                                             title="View Details"
                                                         >
