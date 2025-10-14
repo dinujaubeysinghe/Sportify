@@ -20,27 +20,22 @@ import useSettings from '../hooks/useSettings'; // Adjust path as needed
 const Checkout = () => {
   const { 
     items, 
-    total, // Final discounted total
     itemCount, 
-    discountAmount, // Discount amount
     clearCart,
-    loadCart // To ensure fresh data on mount
+    getCartSummary, // The async function from the context
   } = useCart();
     const { settings, isLoading: settingsLoading } = useSettings();
 
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const [summary, setSummary] = useState(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(true);
+
   // --- State & Calculations ---
   const [currentStep, setCurrentStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
-  
-  // NOTE: Server is the source of truth, but we use these for client-side display.
-  // Assuming simple/free shipping and no tax for initial display based on Order Model defaults.
-  // The server will calculate the *actual* final values during order creation.
-  const displaySubtotal = total + discountAmount;
-  const displayShippingCost = 0; // The server will calculate the real shipping cost
-  const displayTaxAmount = 0;    // The server will calculate the real tax
+
 
   // Form data initialization
   const [shippingInfo, setShippingInfo] = useState({
@@ -83,18 +78,38 @@ const Checkout = () => {
       navigate('/cart');
       return;
     }
-    // Load cart to ensure the total is fresh and discount is applied
-    loadCart();
-  }, [items, navigate, loadCart]);
+    const fetchSummary = async () => {
+      setIsLoadingSummary(true);
+      try {
+        const result = await getCartSummary(); // Wait for the promise to resolve
+        
+        if (result.success) {
+          setSummary(result.summary); // Store the fetched data in state
+        } else {
+          toast.error(result.error || 'Could not load cart details.');
+          navigate('/cart');
+        }
+      } catch (error) {
+        console.error("Fetch Summary Error:", error);
+        toast.error('An error occurred while loading your cart.');
+        navigate('/cart');
+      } finally {
+        setIsLoadingSummary(false); // Stop the loading indicator
+      }
+    };
+
+    fetchSummary();
+  }, [itemCount, getCartSummary, navigate]);
 
   // --- Helper Functions ---
     const currencyCode = settings?.currency || 'LKR'; 
+    const taxPrecentage = settings?.taxRate;
 
     // FIX: Dynamic currency code
     const formatPrice = (price) => {
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
-        currency: currencyCode // <--- DYNAMICALLY USE SETTINGS CURRENCY
+        currency: currencyCode 
       }).format(price);
     };
 
@@ -202,6 +217,7 @@ const Checkout = () => {
     }
   };
 
+  
 
   const steps = [
     { id: 1, title: 'Shipping', description: 'Delivery information' },
@@ -209,22 +225,22 @@ const Checkout = () => {
     { id: 3, title: 'Review', description: 'Confirm order' }
   ];
 
+  if (isLoadingSummary) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
   // (Component render logic remains largely the same, focusing on the summary panel changes)
 
-  if (items.length === 0) {
-    // (Empty cart return block is unchanged)
+  if (!summary || items.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <ShoppingCart className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
-          <p className="text-gray-600 mb-6">Add some items to your cart before checking out.</p>
-          <button
-            onClick={() => navigate('/products')}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Continue Shopping
-          </button>
         </div>
       </div>
     );
@@ -362,30 +378,30 @@ const Checkout = () => {
                   <div className="space-y-3 mb-6">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Subtotal</span>
-                      <span className="text-gray-900">{formatPrice(displaySubtotal)}</span>
+                      <span className="text-gray-900">{formatPrice(summary.subtotal)}</span>
                     </div>
                     
-                    {discountAmount > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-green-600">Discount</span>
-                        <span className="text-green-600">-{formatPrice(discountAmount)}</span>
+                    {summary.discount > 0 && (
+                      <div className="flex justify-between text-sm text-green-600">
+                        <span>Discount</span>
+                        <span>-{formatPrice(summary.discount)}</span>
                       </div>
                     )}
                     
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Shipping</span>
-                      <span className="text-gray-900">{displayShippingCost > 0 ? formatPrice(displayShippingCost) : 'Free'}</span>
+                      <span className="text-gray-900">{summary.shipping > 0 ? formatPrice(summary.shipping) : 'Free'}</span>
                     </div>
                     
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Tax</span>
-                      <span className="text-gray-900">{formatPrice(displayTaxAmount)}</span>
+                      <span className="text-gray-600">Tax ({taxPrecentage}%)</span>
+                      <span className="text-gray-900">{formatPrice(summary.tax)}</span>
                     </div>
                     
                     <div className="border-t border-gray-200 pt-3">
                       <div className="flex justify-between text-lg font-semibold">
-                        <span>Total (LKR)</span>
-                        <span>{formatPrice(total)}</span> {/* Final Total from CartContext */}
+                        <span>Total ({currencyCode})</span>
+                        <span>{formatPrice(summary.total)}</span>
                       </div>
                     </div>
                   </div>

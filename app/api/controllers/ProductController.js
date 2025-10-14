@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const Product = require('../models/Product');
+const Inventory = require('../models/Inventory');
 
 // ===================== GET ALL PRODUCTS =====================
 exports.getProducts = async (req, res) => {
@@ -15,18 +16,10 @@ exports.getProducts = async (req, res) => {
 
     const filter = { };
 
-    // --- CRITICAL FIX START: Filter by isActive ---
-    // The frontend sends isActive=true. We filter based on that.
-    // If the frontend does NOT send the parameter (e.g., admin route), 
-    // you might skip this line or apply different logic. 
-    // Here, we explicitly listen for the 'true' string from the query param.
     if (req.query.isActive === 'true') {
         filter.isActive = true;
     } 
-    // If you want all public-facing routes to ONLY show active products by default:
-    // else { filter.isActive = true; } 
-    // For now, we only apply the filter when requested by the client.
-    // --- CRITICAL FIX END ---
+
 
     if (req.query.category) filter.category = req.query.category;
     if (req.query.brand) filter.brand = new RegExp(req.query.brand, 'i');
@@ -99,13 +92,26 @@ exports.createProduct = async (req, res) => {
         errors: errors.array(),
       });
     }
-    console.log('req',req.body);
-    const productData = { ...req.body };   // ✅ FIXED
 
-    // Clean up images field if frontend sends it as a string
-    if (typeof productData.images === "string") {
-      delete productData.images;
+    // Destructure inventory-related fields and product details from the request body
+    const {
+      currentStock,
+      minStockLevel,
+      ...productDetails
+    } = req.body;
+
+    // Check for duplicate SKU first to avoid unnecessary operations
+    const existing = await Product.findOne({
+      sku: productDetails.sku.toUpperCase(),
+    });
+    if (existing) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Product with this SKU already exists" });
     }
+
+    const productData = { ...productDetails };
+    productData.supplier = req.user._id;
 
     // Handle uploaded images
     if (req.files && req.files.length > 0) {
@@ -116,26 +122,33 @@ exports.createProduct = async (req, res) => {
       }));
     }
 
-    productData.supplier = req.user._id;
-
-    // Check for duplicate SKU
-    const existing = await Product.findOne({
-      sku: productData.sku.toUpperCase(),
-    });
-    if (existing) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Product with this SKU already exists" });
-    }
+    // --- Create Product and Inventory ---
+    // Note: For better data integrity, you should wrap these two database
+    // operations in a Mongoose transaction. This ensures that if the inventory
+    // creation fails, the product creation is rolled back.
 
     const product = await Product.create(productData);
+
+    // Prepare data for the new inventory document
+    const inventoryData = {
+      product: product._id,
+      currentStock: product.stock || 0,
+      minStockLevel: minStockLevel || 5,
+    };
+
+    const inventory = await Inventory.create(inventoryData);
+
     res.status(201).json({
       success: true,
-      message: "Product created successfully",
+      message: "Product and inventory created successfully",
       product,
+      inventory, // Include the new inventory record in the response
     });
+    
   } catch (error) {
     console.error("Create product error:", error);
+    // If an error occurs, especially between product and inventory creation,
+    // you might have an orphaned product without inventory. Transactions prevent this.
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -177,6 +190,12 @@ exports.updateProduct = async (req, res) => {
       updateData,
       { new: true, runValidators: true }
     ).populate('supplier', 'businessName firstName lastName');
+
+    const inventoryUpdated = await Inventory.findOneAndUpdate(
+      {product:updated._id},
+      {currentStock: updated.stock, minStockLevel:updated.minStockLevel },
+      { new: true}
+    );
 
     res.json({ success: true, message: 'Product updated successfully', product: updated });
   } catch (error) {

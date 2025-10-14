@@ -37,7 +37,7 @@ const SupplierInventory = () => {
     async () => {
       const response = await axios.get('/inventory/supplier/summary');
       console.log('summ: ', response);
-      return response.data.summary;
+      return response.data?.summary;
     }
   );
 
@@ -518,6 +518,8 @@ const { data: stockMovementsData, isLoading: movementsLoading } = useQuery(
                   )}
                 </div>
               )}
+
+              
             </div>
           </div>
         </div>

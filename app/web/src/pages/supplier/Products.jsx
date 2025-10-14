@@ -545,6 +545,8 @@ const SupplierProducts = () => {
                                                     <div className="text-xs text-gray-500">{p.category?.name || 'N/A'}</div>
                                                 </div>
                                             </div>
+                                                                                {console.log(p)}
+
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-700">{p.sku}</td>
                                         <td className="px-6 py-4 text-sm text-gray-700">LKR {Number(p.price).toFixed(2)}</td>

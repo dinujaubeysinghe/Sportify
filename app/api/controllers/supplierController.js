@@ -148,6 +148,8 @@ exports.getSupplierProducts = async (req, res) => {
 
     const products = await Product.find(filter)
       .populate('supplier', 'businessName firstName lastName')
+      .populate('category', 'name')
+      .populate('brand', 'name')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
