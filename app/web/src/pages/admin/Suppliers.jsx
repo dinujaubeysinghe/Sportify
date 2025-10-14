@@ -6,18 +6,14 @@ import axios from 'axios';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import toast from 'react-hot-toast';
 
-// Status filter options
 const statusFilters = {
     all: { label: 'All', icon: Users, color: 'bg-gray-600', filter: {} },
-    // Using string booleans for clarity for the backend
     pending: { label: 'Pending Review', icon: Clock, color: 'bg-yellow-600', filter: { isApproved: 'false', isActive: 'true' } }, 
     approved: { label: 'Approved', icon: CheckCircle, color: 'bg-green-600', filter: { isApproved: 'true', isActive: 'true' } }, 
     rejected: { label: 'Rejected / Disabled', icon: XCircle, color: 'bg-red-600', filter: { isActive: 'false' } }, 
 };
 
-// ----------------------
-// Supplier Details Modal (No changes needed)
-// ----------------------
+
 const SupplierDetailsModal = ({ supplier, closeModal }) => {
     if (!supplier) return null;
 
@@ -79,9 +75,7 @@ const SupplierDetailsModal = ({ supplier, closeModal }) => {
     );
 };
 
-// ----------------------
-// Main AdminSuppliers Component
-// ----------------------
+
 const AdminSuppliers = () => {
     const [currentStatus, setCurrentStatus] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
@@ -93,10 +87,9 @@ const AdminSuppliers = () => {
 
     const handleStatusChange = (statusKey) => {
         setCurrentStatus(statusKey);
-        setCurrentPage(1); // Reset page when changing filters
+        setCurrentPage(1); 
     };
 
-    // ===== Fetch Suppliers with Debug Logging =====
     const { data: suppliersData, isLoading, error, refetch } = useQuery(
         ['suppliers', currentStatus, currentPage],
         async () => {
@@ -114,7 +107,6 @@ const AdminSuppliers = () => {
 
 
             const res = await axios.get(requestUrl);
-                        // 🐛 DEBUG CODE: Log the request URL to the console
             console.log("------------------------------------------");
             console.log(`API Call for Status: ${currentStatus}`);
             console.log("Request URL:", requestUrl);
@@ -122,19 +114,16 @@ const AdminSuppliers = () => {
             console.log("Request Data:", res.data.suppliers);
             console.log("------------------------------------------");
             
-            // ------------------------------------------
             return res.data;
             
         },
         { keepPreviousData: true }
     );
     
-    // --- Data Processing ---
     const suppliers = suppliersData?.suppliers || [];
     const totalCount = suppliersData?.total || 0;
     const totalPages = Math.ceil(totalCount / limit);
     
-    // --- Logic Helpers ---
     const getApprovalStatus = (supplier) => {
         if (supplier.isActive === false) return 'Rejected/Disabled'; 
         if (supplier.isApproved === true) return 'Approved';
@@ -157,7 +146,7 @@ const AdminSuppliers = () => {
             
             const updatePayload = {
                 isApproved: approveStatus,
-                isActive: approveStatus // Set isActive to true if approving, false if rejecting/disabling
+                isActive: approveStatus  
             };
             
             await axios.put(`/admin/supplier/${supplierId}/status`, updatePayload);
