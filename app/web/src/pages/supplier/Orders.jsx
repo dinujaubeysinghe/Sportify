@@ -216,7 +216,7 @@ const SupplierOrders = () => {
                   value={form.shipmentStatus}
                   onChange={(e) => setForm({ ...form, shipmentStatus: e.target.value })}
                   className="w-full border rounded px-3 py-2 capitalize"
-                >
+                 >
                   {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
@@ -244,3 +244,4 @@ const SupplierOrders = () => {
 };
 
 export default SupplierOrders;
+
