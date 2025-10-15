@@ -4,63 +4,102 @@ const Inventory = require('../models/Inventory');
 
 // ===================== GET ALL PRODUCTS =====================
 exports.getProducts = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
-    }
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 12;
-    const skip = (page - 1) * limit;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12;
+    const skip = (page - 1) * limit;
 
-    const filter = { };
+    // --- FILTER LOGIC ---
+    const filter = {};
 
+    // Always filter for active products on the public-facing route
     if (req.query.isActive === 'true') {
-        filter.isActive = true;
-    } 
+      filter.isActive = true;
+    }
 
+    // Search (requires a text index on your Product schema)
+    if (req.query.search) {
+      filter.$text = { $search: req.query.search };
+    }
 
-    if (req.query.category) filter.category = req.query.category;
-    if (req.query.brand) filter.brand = new RegExp(req.query.brand, 'i');
-    if (req.query.minPrice || req.query.maxPrice) {
-      filter.price = {};
-      if (req.query.minPrice) filter.price.$gte = parseFloat(req.query.minPrice);
-      if (req.query.maxPrice) filter.price.$lte = parseFloat(req.query.maxPrice);
-    }
-    if (req.query.search) filter.$text = { $search: req.query.search };
-    if (req.query.featured === 'true') filter.isFeatured = true;
+    // --- FIX: Handle multiple category IDs ---
+    // Frontend sends: "id1,id2,id3"
+    if (req.query.category) {
+      filter.category = { $in: req.query.category.split(',') };
+    }
 
-    let sort = { createdAt: -1 };
-    switch (req.query.sort) {
-      case 'price_asc': sort = { price: 1 }; break;
-      case 'price_desc': sort = { price: -1 }; break;
-      case 'name_asc': sort = { name: 1 }; break;
-      case 'name_desc': sort = { name: -1 }; break;
-      case 'newest': sort = { createdAt: -1 }; break;
-      case 'rating': sort = { 'ratings.average': -1 }; break;
-    }
+    // --- FIX: Handle multiple brand IDs ---
+    // Express automatically parses `?brand=id1&brand=id2` into an array
+    if (req.query.brand) {
+      filter.brand = { $in: req.query.brand };
+    }
 
-    const products = await Product.find(filter)
-      .populate('supplier', 'businessName firstName lastName')
-      .populate('category', 'name')
-      .populate('brand', 'name')
-      .sort(sort).skip(skip).limit(limit);
+    // Price range
+    if (req.query.minPrice || req.query.maxPrice) {
+      filter.price = {};
+      if (req.query.minPrice) filter.price.$gte = parseFloat(req.query.minPrice);
+      if (req.query.maxPrice) filter.price.$lte = parseFloat(req.query.maxPrice);
+    }
+    
+    // --- NEW: Handle minimum rating ---
+    if (req.query.minRating) {
+      // Ensure the ratings average field exists and is greater than or equal to the value
+      filter['ratings.average'] = { $gte: parseFloat(req.query.minRating) };
+    }
+    
+    // --- NEW: Handle "On Sale" filter ---
+    if (req.query.onSale === 'true') {
+      // Find products with a discount greater than 0
+      filter.discount = { $gt: 0 };
+    }
 
-    const total = await Product.countDocuments(filter);
+    if (req.query.featured === 'true') {
+      filter.isFeatured = true;
+    }
 
-    res.json({
-      success: true,
-      count: products.length,
-      total,
-      page,
-      pages: Math.ceil(total / limit),
-      products
-    });
-  } catch (error) {
-    console.error('Get products error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+    // --- SORT LOGIC ---
+    let sort = { createdAt: -1 }; // Default sort
+    
+    // --- FIX: Match sort keys from frontend ---
+    switch (req.query.sort) {
+      case 'price-low': sort = { price: 1 }; break;
+      case 'price-high': sort = { price: -1 }; break;
+      case 'name-asc': sort = { name: 1 }; break;
+      case 'name-desc': sort = { name: -1 }; break;
+      case 'newest': sort = { createdAt: -1 }; break;
+      case 'oldest': sort = { createdAt: 1 }; break;
+      case 'rating': sort = { 'ratings.average': -1 }; break;
+      case 'popular': sort = { 'ratings.count': -1 }; break; // Assuming popularity is based on review count
+    }
+
+    const products = await Product.find(filter)
+      .populate('supplier', 'businessName')
+      .populate('category', 'name')
+      .populate('brand', 'name')
+      .sort(sort)
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Product.countDocuments(filter);
+
+    // --- FIX: Use response keys the frontend expects ---
+    res.json({
+      success: true,
+      totalProducts: total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      products
+    });
+    
+  } catch (error) {
+    console.error('Get products error:', error);
+    res.status(500).json({ success: false, message: 'Server error while fetching products.' });
+  }
 };
 
 // ===================== GET SINGLE PRODUCT =====================

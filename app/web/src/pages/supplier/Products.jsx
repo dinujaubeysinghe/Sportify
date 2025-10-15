@@ -172,7 +172,19 @@ const SupplierProducts = () => {
     });
 
     const onSubmitCreate = (data) => createProduct(data);
-    const onSubmitEdit = (data) => updateProduct({ id: editingProduct._id, data });
+    
+    const onSubmitEdit = (data) => {
+        const payload = { ...data };
+        
+        // Only include the 'images' field if the user has selected new files.
+        // An un-touched image input holds the original array of image objects, not a FileList.
+        // An empty selection results in a FileList with length 0.
+        if (!(payload.images instanceof FileList) || payload.images.length === 0) {
+            delete payload.images;
+        }
+    
+        updateProduct({ id: editingProduct._id, data: payload });
+    };
 
     const openEditModal = (product) => {
         setEditingProduct(product);
@@ -438,7 +450,7 @@ const SupplierProducts = () => {
             <div>
                  <label className="text-sm font-medium text-gray-700 mb-1 flex items-center"><ImageIcon className="h-4 w-4 mr-2" /> {isEditMode ? 'Add/Replace Images' : 'Images'}</label>
                  {isEditMode && editingProduct?.images?.length > 0 && (
-                     <p className="text-xs text-yellow-700 mb-2">Note: Selecting new images will replace existing ones. Upload again to ensure all images are present.</p>
+                     <p className="text-xs text-yellow-700 mb-2">Note: Selecting new images will replace all existing ones.</p>
                  )}
                  <input 
                     type="file" 
@@ -446,7 +458,7 @@ const SupplierProducts = () => {
                     accept="image/*" 
                     {...registerFn("images", isEditMode ? {} : { required: "At least one image is required for a new product" })} 
                     className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
-                 />
+                />
                  {errorsObj.images && <p className="text-sm text-red-600 mt-1">{errorsObj.images.message}</p>}
             </div>
         </div>
@@ -545,18 +557,16 @@ const SupplierProducts = () => {
                                                     <div className="text-xs text-gray-500">{p.category?.name || 'N/A'}</div>
                                                 </div>
                                             </div>
-                                                                                {console.log(p)}
-
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-700">{p.sku}</td>
                                         <td className="px-6 py-4 text-sm text-gray-700">LKR {Number(p.price).toFixed(2)}</td>
                                         <td className="px-6 py-4 text-sm">
                                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                 p.stock <= (p.minStockLevel || 5) ? 'bg-red-100 text-red-800' : 
-                                                 p.stock < 20 ? 'bg-yellow-100 text-yellow-800' : 
-                                                 'bg-green-100 text-green-800'
-                                             }`}>
-                                                 {p.stock}
+                                                  p.stock <= (p.minStockLevel || 5) ? 'bg-red-100 text-red-800' : 
+                                                  p.stock < 20 ? 'bg-yellow-100 text-yellow-800' : 
+                                                  'bg-green-100 text-green-800'
+                                              }`}>
+                                                  {p.stock}
                                              </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
