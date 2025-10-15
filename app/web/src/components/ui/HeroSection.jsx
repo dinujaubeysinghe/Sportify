@@ -71,7 +71,7 @@ const HeroSection = () => {
               Shop All Gear
             </Link>
             <Link
-              to="/products?category=bats"
+              to="/products?category=68f016b4ac0edc299ac3cb0b"
               className="border border-white/40 text-white px-8 py-3 rounded-xl text-base sm:text-lg hover:bg-white/10 transition-all duration-300"
             >
               Browse Bats

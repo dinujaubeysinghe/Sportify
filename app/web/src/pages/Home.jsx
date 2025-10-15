@@ -63,8 +63,8 @@ const Home = () => {
     const { cricketCategory, otherCategories } = useMemo(() => {
         const safeCategories = Array.isArray(rawCategoriesData) ? rawCategoriesData : [];
         return {
-            cricketCategory: safeCategories.find(cat => cat.name.toLowerCase() === 'cricket'),
-            otherCategories: safeCategories.filter(cat => cat.name.toLowerCase() !== 'cricket'),
+            cricketCategory: safeCategories.find(cat => cat.name.toLowerCase() === 'balls'),
+            otherCategories: safeCategories.filter(cat => cat.name.toLowerCase() !== 'balls'),
         };
     }, [rawCategoriesData]);
 
@@ -164,7 +164,6 @@ const Home = () => {
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
                                         <div className="absolute bottom-0 left-0 p-8 text-white">
                                             <h3 className="text-4xl font-extrabold tracking-tight">{cricketCategory.name}</h3>
-                                            <p className="mt-2 text-blue-200 flex items-center text-lg"><Trophy className="h-5 w-5 mr-2 text-yellow-400"/> The Nation's Passion</p>
                                             <Link to={`/products?category=${cricketCategory._id}`} className="mt-4 inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-full shadow-lg hover:bg-blue-700 transition-colors">
                                                 Shop Now <ArrowRight className="ml-2 h-5 w-5" />
                                             </Link>
