@@ -2,6 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const { protect, authorize } = require('../middlewares/auth');
 const adminController = require('../controllers/adminController');
+const supplierController = require('../controllers/supplierController');
 
 const router = express.Router();
 
@@ -45,5 +46,7 @@ router.put('/settings', protect, authorize('admin'), [
 
 // Reports
 router.get('/reports', protect, authorize('admin'), adminController.getReports);
+
+router.get('/payments/analysis', protect, authorize('admin', 'staff'), supplierController.getPaymentAnalysis);
 
 module.exports = router;

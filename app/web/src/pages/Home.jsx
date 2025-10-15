@@ -3,13 +3,12 @@ import { useQuery } from 'react-query';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom'; // Import Link
 import { 
     ShoppingBag, 
     Truck, 
     Shield, 
     Star,
-    Users,
-    Package,
     ArrowRight,
     Zap,
     Trophy 
@@ -21,7 +20,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import HeroSection from '../components/ui/HeroSection';
 import NewsletterSignup from '../components/ui/NewsletterSignup';
 
-// Framer Motion Variants
+// Framer Motion Variants (no changes needed)
 const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -35,20 +34,8 @@ const itemVariants = {
     visible: { y: 0, opacity: 1, transition: { duration: 0.6, type: "spring" } },
 };
 
-// Helper function to get category icons (kept for fallback)
-const getCategoryIcon = (category) => {
-    const icons = {
-        cricket: '🏏',
-        football: '⚽',
-        basketball: '🏀',
-        // ... (other icons)
-        equipment: '🏋️'
-    };
-    return icons[category?.toLowerCase()] || '🏆';
-};
-
 const Home = () => {
-    // Fetch featured products
+    // --- Data Fetching (No changes needed, your logic is solid) ---
     const { data: featuredProducts = [], isLoading: productsLoading } = useQuery(
         'featured-products',
         async () => {
@@ -57,7 +44,6 @@ const Home = () => {
         }
     );
 
-    // Fetch categories (Robust array handling in error/response)
     const { data: rawCategoriesData = [], isLoading: categoriesLoading } = useQuery(
         'categories',
         async () => {
@@ -74,234 +60,210 @@ const Home = () => {
         }
     );
 
-    // --- CRITICAL FIX: Use useMemo to safely process categories only when data is stable ---
     const { cricketCategory, otherCategories } = useMemo(() => {
         const safeCategories = Array.isArray(rawCategoriesData) ? rawCategoriesData : [];
-        
         return {
-            cricketCategory: safeCategories.find(
-                cat => cat.name.toLowerCase() === 'cricket'
-            ),
-            otherCategories: safeCategories.filter(
-                cat => cat.name.toLowerCase() !== 'cricket'
-            ),
+            cricketCategory: safeCategories.find(cat => cat.name.toLowerCase() === 'balls'),
+            otherCategories: safeCategories.filter(cat => cat.name.toLowerCase() !== 'balls'),
         };
-    }, [rawCategoriesData]); // Logic runs only when data is stable and available
-    // -----------------------------------------------------------------------------
+    }, [rawCategoriesData]);
 
-
-    // --- Other Static Data (Features/Stats) remains the same ---
+    // --- NEW: Refined Feature Data ---
     const features = [
-        { icon: <ShoppingBag className="w-8 h-8" />, title: "Wide Selection", description: "Find everything you need for your favorite sports" },
-        { icon: <Truck className="w-8 h-8" />, title: "Fast Shipping", description: "Quick and reliable delivery to your doorstep" },
-        { icon: <Shield className="w-8 h-8" />, title: "Quality Guarantee", description: "Premium products from trusted brands" },
-        { icon: <Star className="w-8 h-8" />, title: "Expert Support", description: "Get help from sports equipment specialists" }
+        { icon: <ShoppingBag className="w-8 h-8" />, title: "Vast Selection", description: "From grassroots to professional gear, we have it all." },
+        { icon: <Truck className="w-8 h-8" />, title: "Island-wide Delivery", description: "Fast, reliable, and tracked shipping across Sri Lanka." },
+        { icon: <Shield className="w-8 h-8" />, title: "Authenticity Guaranteed", description: "100% genuine products sourced from trusted brands." },
     ];
-
-    const stats = [
-        { icon: <Users className="w-6 h-6" />, label: "Happy Customers", value: "10,000+", suffix: "" },
-        { icon: <Package className="w-6 h-6" />, label: "Products", value: "5,000+", suffix: "" },
-        { icon: <Truck className="w-6 h-6" />, label: "Orders Delivered", value: "50,000+", suffix: "" },
-        { icon: <Star className="w-6 h-6" />, label: "Average Rating", value: "4.8", suffix: "/5" }
-    ];
-
 
     return (
         <>
             <Helmet>
-                <title>Sportify - Your Ultimate Sports Equipment Store</title>
+                <title>Sportify - Your Ultimate Sports Equipment Store in Sri Lanka</title>
                 <meta 
                     name="description" 
-                    content="Discover premium sports equipment, gear, and accessories for all your favorite sports. Fast shipping, quality guarantee, and expert support." 
+                    content="Discover premium sports equipment for cricket, football, and more. Based in Sri Lanka, we offer fast island-wide shipping, a quality guarantee, and expert support." 
                 />
             </Helmet>
 
-            <div className="min-h-screen bg-white">
+            <div className="min-h-screen bg-slate-50">
                 {/* 1. Hero Section */}
                 <HeroSection />
 
-                {/* 2. Stats Section (unchanged) */}
-                <section className="py-16 bg-gray-50 border-b border-gray-200">
+                {/* 2. Why Choose Us Section (NEW DESIGN) */}
+                <section className="py-20 bg-white">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <motion.div
+                            className="text-center mb-12"
+                            initial={{ opacity: 0 }}
+                            whileInView={{ opacity: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.5 }}
+                        >
+                            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Why Shop With Sportify?</h2>
+                            <p className="mt-4 text-lg text-slate-600">The gear you need, with the service you deserve.</p>
+                        </motion.div>
                         <motion.div 
-                            className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8"
+                            className="grid grid-cols-1 md:grid-cols-3 gap-8"
                             variants={containerVariants}
                             initial="hidden"
                             whileInView="visible"
-                            viewport={{ once: true, amount: 0.5 }}
+                            viewport={{ once: true, amount: 0.3 }}
                         >
-                            {stats.map((stat, index) => (
+                            {features.map((feature) => (
                                 <motion.div 
-                                    key={index} 
-                                    className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 transform transition-transform hover:scale-[1.02] duration-300"
+                                    key={feature.title} 
+                                    className="p-8 bg-slate-50 rounded-xl shadow-lg border border-slate-100 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2"
                                     variants={itemVariants}
                                 >
-                                    <div className="flex items-center space-x-3 text-blue-600 mb-2">
-                                        {stat.icon}
-                                        <span className="text-sm font-medium text-gray-500 uppercase">{stat.label}</span>
+                                    <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mb-5 text-blue-600">
+                                        {feature.icon}
                                     </div>
-                                    <div className="text-4xl font-extrabold text-gray-900">
-                                        {stat.value}
-                                        <span className='text-base font-semibold text-blue-600'>{stat.suffix}</span>
-                                    </div>
+                                    <h3 className="text-2xl font-bold text-slate-900 mb-2">{feature.title}</h3>
+                                    <p className="text-slate-600">{feature.description}</p>
                                 </motion.div>
                             ))}
                         </motion.div>
                     </div>
                 </section>
 
-                {/* 3. Categories Section (Enhanced Modern Design) */}
-                <section className="py-16 bg-white">
+                {/* 3. Shop by Category Section (DYNAMIC MOSAIC DESIGN) */}
+                <section className="py-20 bg-slate-50">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="text-center mb-12">
-                            <h2 className="text-4xl font-extrabold text-gray-900 mb-2">
-                                Discover Your Sport
-                            </h2>
-                            <p className="text-xl text-gray-600">Shop by our most popular categories.</p>
-                        </div>
+                        <motion.div
+                            className="text-center mb-12"
+                            initial={{ opacity: 0 }}
+                            whileInView={{ opacity: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.5 }}
+                        >
+                            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Shop by Category</h2>
+                            <p className="mt-4 text-lg text-slate-600">Find the right gear for your game.</p>
+                        </motion.div>
 
                         {categoriesLoading ? (
                             <div className="flex justify-center"><LoadingSpinner size="lg" /></div>
                         ) : (
                             <motion.div 
-                                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
+                                className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-[600px]"
                                 variants={containerVariants}
                                 initial="hidden"
                                 whileInView="visible"
-                                viewport={{ once: true, amount: 0.2 }}
+                                viewport={{ once: true, amount: 0.1 }}
                             >
-                                {/* 1. Cricket Priority Card (Large, Dynamic Focus) */}
+                                {/* Cricket Feature Card */}
                                 {cricketCategory && (
-                                    <motion.a 
-                                        key={cricketCategory._id}
-                                        href={`/products?category=${cricketCategory._id}`}
-                                        className="col-span-2 sm:col-span-3 lg:col-span-2 bg-gradient-to-br from-blue-700 to-indigo-800 text-white rounded-2xl p-6 text-center shadow-2xl border-4 border-yellow-400 transform transition-all duration-500 hover:scale-[1.03]"
+                                    <motion.div 
                                         variants={itemVariants}
+                                        className="lg:col-span-3 lg:row-span-2 rounded-2xl overflow-hidden group relative shadow-2xl"
                                     >
-                                        <div className="flex justify-center mb-4">
-                                            {cricketCategory.image?.url ? (
-                                                <img 
-                                                    src={`${import.meta.env.VITE_SERVER_URL}/${cricketCategory.image.url.replace(/\\/g, "/")}`} 
-                                                    alt={cricketCategory.name} 
-                                                    className="w-full h-16 object-contain filter rounded-lg"
-                                                />
-                                            ) : (
-                                                <span className="text-7xl block animate-pulse">{getCategoryIcon(cricketCategory.name)}</span>
-                                            )}
+                                        <img 
+                                            src={`${import.meta.env.VITE_SERVER_URL}/${cricketCategory.image.url.replace(/\\/g, "/")}`} 
+                                            alt={cricketCategory.name} 
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                                        <div className="absolute bottom-0 left-0 p-8 text-white">
+                                            <h3 className="text-4xl font-extrabold tracking-tight">{cricketCategory.name}</h3>
+                                            <Link to={`/products?category=${cricketCategory._id}`} className="mt-4 inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-full shadow-lg hover:bg-blue-700 transition-colors">
+                                                Shop Now <ArrowRight className="ml-2 h-5 w-5" />
+                                            </Link>
                                         </div>
-                                        <h3 className="text-white font-extrabold text-3xl mb-1">{cricketCategory.name.toUpperCase()}</h3>
-                                        <p className="text-blue-200 mt-1 font-medium text-sm flex items-center justify-center">
-                                            <Trophy className="h-4 w-4 mr-1"/> Our Top Priority
-                                        </p>
-                                    </motion.a>
+                                    </motion.div>
                                 )}
 
-                                {/* 2. Other Categories (Clean Grid Cards) */}
-                                {otherCategories.map((cat) => (
-                                    <motion.a 
+                                {/* Other Categories Grid */}
+                                {otherCategories.slice(0, 4).map((cat, index) => (
+                                    <motion.div
                                         key={cat._id}
-                                        href={`/products?category=${cat._id}`}
-                                        className="bg-gray-100 rounded-xl p-4 text-center hover:bg-blue-50 transition-all duration-300 transform hover:-translate-y-1 shadow-md border border-gray-200"
                                         variants={itemVariants}
+                                        className={`lg:col-span-2 rounded-2xl overflow-hidden group relative shadow-xl ${index > 1 ? 'hidden md:block' : ''}`} // Hide 3rd & 4th on mobile for cleaner look
                                     >
-                                        <div className="mb-3">
-                                            {cat.image?.url ? (
-                                                <img 
-                                                    src={`${import.meta.env.VITE_SERVER_URL}/${cat.image.url.replace(/\\/g, "/")}`} 
-                                                    alt={cat.image.alt || cat.name} 
-                                                    className="h-full object-contain mx-auto w-full rounded-lg"
-                                                />
-                                            ) : (
-                                                <span className="text-3xl block">{getCategoryIcon(cat.name)}</span>
-                                            )}
-                                        </div>
-                                        <h3 className="text-gray-900 font-bold text-sm">{cat.name}</h3>
-                                    </motion.a>
+                                        <img 
+                                            src={`${import.meta.env.VITE_SERVER_URL}/${cat.image.url.replace(/\\/g, "/")}`} 
+                                            alt={cat.name} 
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                        />
+                                        <div className="absolute inset-0 bg-black/60"></div>
+                                        <Link to={`/products?category=${cat._id}`} className="absolute inset-0 flex flex-col items-center justify-center p-4 text-white">
+                                            <h3 className="text-2xl font-bold">{cat.name}</h3>
+                                            <p className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">View Collection</p>
+                                        </Link>
+                                    </motion.div>
                                 ))}
                             </motion.div>
                         )}
-                        <div className="text-center mt-12">
-                            <a 
-                                href="/products" 
-                                className="inline-flex items-center px-8 py-3 bg-blue-600 text-white text-lg font-semibold rounded-full shadow-lg hover:bg-blue-700 transition-colors"
-                            >
-                                View All Products <ArrowRight className="ml-3 h-5 w-5" />
-                            </a>
-                        </div>
                     </div>
                 </section>
 
-                {/* 4. Features Section (Animated) */}
-                <section className="py-16 bg-gray-50">
+                {/* 4. Featured Products Section */}
+                <section className="py-20 bg-white">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="text-center mb-12">
-                            <h2 className="text-4xl font-extrabold text-gray-900 mb-2">
-                                Your Trusted Sports Partner
-                            </h2>
-                        </div>
-                        <motion.div 
-                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
-                            variants={containerVariants}
-                            initial="hidden"
-                            whileInView="visible"
-                            viewport={{ once: true, amount: 0.5 }}
+                        <motion.div
+                            className="text-center mb-12"
+                            initial={{ opacity: 0 }}
+                            whileInView={{ opacity: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.5 }}
                         >
-                            {features.map((feature, index) => (
-                                <motion.div 
-                                    key={index} 
-                                    className="text-left p-6 bg-white rounded-xl border border-gray-200 hover:border-blue-300 transition-colors shadow-md"
-                                    variants={itemVariants}
-                                >
-                                    <div className="bg-blue-50 w-12 h-12 rounded-full flex items-center justify-center mb-4 text-blue-600 shadow-md">
-                                        {feature.icon}
-                                    </div>
-                                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                                        {feature.title}
-                                    </h3>
-                                    <p className="text-gray-600 text-sm">
-                                        {feature.description}
-                                    </p>
-                                </motion.div>
-                            ))}
-                        </motion.div>
-                    </div>
-                </section>
-
-                {/* 5. Featured Products Section (Animated) */}
-                <section className="py-16 bg-white">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="text-center mb-12">
-                            <h2 className="text-4xl font-extrabold text-gray-900 mb-2">
-                                Top Picks & Deals
-                            </h2>
-                            <p className="text-lg text-gray-600 flex items-center justify-center">
-                                <Zap className='h-5 w-5 text-yellow-500 mr-2'/> Limited Stock & Exclusive Offers
+                            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Top Picks & Deals</h2>
+                            <p className="mt-4 text-lg text-slate-600 flex items-center justify-center">
+                                <Zap className='h-5 w-5 text-yellow-500 mr-2'/> Limited Stock & Exclusive Offers Just For You
                             </p>
-                        </div>
-
+                        </motion.div>
+                        
                         {productsLoading ? (
                             <div className="flex justify-center"><LoadingSpinner size="lg" /></div>
                         ) : (
                             <motion.div 
-                                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
                                 variants={containerVariants}
                                 initial="hidden"
                                 whileInView="visible"
-                                viewport={{ once: true, amount: 0.2 }}
+                                viewport={{ once: true, amount: 0.1 }}
                             >
-                                {featuredProducts?.length > 0 ? (
-                                    featuredProducts.map((product) => (
-                                        <motion.div key={product._id} variants={itemVariants}>
-                                            <ProductCard product={product} />
-                                        </motion.div>
-                                    ))
-                                ) : (
-                                    <div className="col-span-full text-center py-10 text-gray-600">
-                                        No featured products available right now.
-                                    </div>
-                                )}
+                                {featuredProducts?.map((product) => (
+                                    <motion.div key={product._id} variants={itemVariants}>
+                                        <ProductCard product={product} />
+                                    </motion.div>
+                                ))}
                             </motion.div>
                         )}
+                    </div>
+                </section>
+
+                {/* 5. Brand Story / CTA (NEW SECTION) */}
+                <section className="bg-slate-800">
+                    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center bg-cover bg-center" style={{backgroundImage: `url('/images/stadium-bg.jpg')`}}>
+                        <div className="bg-slate-900/60 p-10 rounded-xl backdrop-blur-sm">
+                            <motion.h2 
+                                className="text-4xl font-extrabold text-white tracking-tight"
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ duration: 0.5 }}
+                            >
+                                For the Love of the Game
+                            </motion.h2>
+                            <motion.p 
+                                className="mt-4 text-lg text-slate-300 max-w-2xl mx-auto"
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ duration: 0.5, delay: 0.2 }}
+                            >
+                                We believe that sport has the power to change lives. That's why we're dedicated to providing every athlete in Sri Lanka with the best gear to chase their dreams.
+                            </motion.p>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ duration: 0.5, delay: 0.4 }}
+                            >
+                                <Link to="/products" className="mt-8 inline-flex items-center px-8 py-3 bg-white text-blue-600 text-lg font-semibold rounded-full shadow-lg hover:bg-slate-100 transition-colors">
+                                    Explore All Gear
+                                </Link>
+                            </motion.div>
+                        </div>
                     </div>
                 </section>
 

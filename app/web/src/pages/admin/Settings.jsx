@@ -119,6 +119,7 @@ const AdminSettings = () => {
                             <div>
                                 <label htmlFor="siteName" className="block text-sm font-medium text-gray-700">Site Name</label>
                                 <input
+                                    disabled
                                     id="siteName"
                                     type="text"
                                     {...register('siteName', { required: 'Site name is required' })}

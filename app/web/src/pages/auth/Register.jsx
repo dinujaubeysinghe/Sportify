@@ -18,7 +18,9 @@ const Register = () => {
     handleSubmit,
     watch,
     formState: { errors, isSubmitting }
-  } = useForm();
+  } = useForm({
+    mode: 'onTouched' // Use onTouched mode for better UX than onSubmit or onChange
+  });
 
   const password = watch('password');
 
@@ -29,10 +31,17 @@ const Register = () => {
   }, [isAuthenticated, navigate]);
 
   const onSubmit = async (data) => {
-    const result = await registerUser({
-      ...data,
-      role: selectedRole
-    });
+    // Clean data payload to only include businessName if role is supplier
+    const payload = {
+        ...data,
+        role: selectedRole,
+    };
+
+    if (selectedRole !== 'supplier') {
+        delete payload.businessName;
+    }
+    
+    const result = await registerUser(payload);
     if (result.success) {
       navigate('/');
     }
@@ -113,9 +122,15 @@ const Register = () => {
                       minLength: {
                         value: 2,
                         message: 'First name must be at least 2 characters'
+                      },
+                      // ADDED: Max length validation
+                      maxLength: {
+                          value: 20,
+                          message: 'First name cannot exceed 20 characters'
                       }
                     })}
                     type="text"
+                    maxLength={20} // Enforce max length typing
                     className="mt-1 appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="First name"
                   />
@@ -134,9 +149,15 @@ const Register = () => {
                       minLength: {
                         value: 2,
                         message: 'Last name must be at least 2 characters'
+                      },
+                      // ADDED: Max length validation
+                      maxLength: {
+                          value: 20,
+                          message: 'Last name cannot exceed 20 characters'
                       }
                     })}
                     type="text"
+                    maxLength={20} // Enforce max length typing
                     className="mt-1 appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="Last name"
                   />
@@ -158,12 +179,19 @@ const Register = () => {
                   <input
                     {...register('email', {
                       required: 'Email is required',
+                      // IMPROVED: Regex is simple and effective
                       pattern: {
-                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,6}$/i,
                         message: 'Invalid email address'
+                      },
+                      // ADDED: Max length validation
+                      maxLength: {
+                          value: 50,
+                          message: 'Email cannot exceed 50 characters'
                       }
                     })}
                     type="email"
+                    maxLength={50} // Enforce max length typing
                     autoComplete="email"
                     className="appearance-none rounded-lg relative block w-full pl-10 pr-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="Enter your email"
@@ -186,9 +214,16 @@ const Register = () => {
                     </div>
                     <input
                       {...register('businessName', {
-                        required: selectedRole === 'supplier' ? 'Business name is required' : false
+                        // Conditional required based on selectedRole
+                        required: selectedRole === 'supplier' ? 'Business name is required' : false,
+                        // ADDED: Max length validation
+                        maxLength: {
+                            value: 50,
+                            message: 'Business name cannot exceed 50 characters'
+                        }
                       })}
                       type="text"
+                      maxLength={50} // Enforce max length typing
                       className="appearance-none rounded-lg relative block w-full pl-10 pr-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                       placeholder="Enter your business name"
                     />
@@ -212,8 +247,13 @@ const Register = () => {
                     {...register('password', {
                       required: 'Password is required',
                       minLength: {
-                        value: 6,
-                        message: 'Password must be at least 6 characters'
+                        value: 8, // IMPROVED: Minimum 8 characters for stronger security
+                        message: 'Password must be at least 8 characters'
+                      },
+                      // ADDED: Stronger Password Pattern
+                      pattern: {
+                          value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+                          message: 'Must include uppercase, lowercase, number, and special character.'
                       }
                     })}
                     type={showPassword ? 'text' : 'password'}

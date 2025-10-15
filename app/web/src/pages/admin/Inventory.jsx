@@ -761,11 +761,10 @@ const AlertsTab = ({ lowStockProducts, handleStockAction }) => (
 // -------------------
 // Reports Tab
 // -------------------
-const ReportsTab = ({ generateCSVReport, generatePDFReport }) => (
+const ReportsTab = ({  generatePDFReport }) => (
     <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Generate Inventory Reports</h3>
         <div className="flex space-x-4">
-            <button onClick={generateCSVReport} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center"><Download className="h-4 w-4 mr-1" />Download CSV</button>
             <button onClick={generatePDFReport} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center"><Download className="h-4 w-4 mr-1" />Download PDF</button>
         </div>
     </div>

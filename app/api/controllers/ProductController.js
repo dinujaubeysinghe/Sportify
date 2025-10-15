@@ -1,73 +1,105 @@
 const { validationResult } = require('express-validator');
 const Product = require('../models/Product');
+const Inventory = require('../models/Inventory');
 
 // ===================== GET ALL PRODUCTS =====================
 exports.getProducts = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
-    }
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 12;
-    const skip = (page - 1) * limit;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12;
+    const skip = (page - 1) * limit;
 
-    const filter = { };
+    // --- FILTER LOGIC ---
+    const filter = {};
 
-    // --- CRITICAL FIX START: Filter by isActive ---
-    // The frontend sends isActive=true. We filter based on that.
-    // If the frontend does NOT send the parameter (e.g., admin route), 
-    // you might skip this line or apply different logic. 
-    // Here, we explicitly listen for the 'true' string from the query param.
+    // Always filter for active products on the public-facing route
     if (req.query.isActive === 'true') {
-        filter.isActive = true;
-    } 
-    // If you want all public-facing routes to ONLY show active products by default:
-    // else { filter.isActive = true; } 
-    // For now, we only apply the filter when requested by the client.
-    // --- CRITICAL FIX END ---
+      filter.isActive = true;
+    }
 
-    if (req.query.category) filter.category = req.query.category;
-    if (req.query.brand) filter.brand = new RegExp(req.query.brand, 'i');
-    if (req.query.minPrice || req.query.maxPrice) {
-      filter.price = {};
-      if (req.query.minPrice) filter.price.$gte = parseFloat(req.query.minPrice);
-      if (req.query.maxPrice) filter.price.$lte = parseFloat(req.query.maxPrice);
-    }
-    if (req.query.search) filter.$text = { $search: req.query.search };
-    if (req.query.featured === 'true') filter.isFeatured = true;
+    // Search (requires a text index on your Product schema)
+    if (req.query.search) {
+      filter.$text = { $search: req.query.search };
+    }
 
-    let sort = { createdAt: -1 };
-    switch (req.query.sort) {
-      case 'price_asc': sort = { price: 1 }; break;
-      case 'price_desc': sort = { price: -1 }; break;
-      case 'name_asc': sort = { name: 1 }; break;
-      case 'name_desc': sort = { name: -1 }; break;
-      case 'newest': sort = { createdAt: -1 }; break;
-      case 'rating': sort = { 'ratings.average': -1 }; break;
-    }
+    // --- FIX: Handle multiple category IDs ---
+    // Frontend sends: "id1,id2,id3"
+    if (req.query.category) {
+      filter.category = { $in: req.query.category.split(',') };
+    }
 
-    const products = await Product.find(filter)
-      .populate('supplier', 'businessName firstName lastName')
-      .populate('category', 'name')
-      .populate('brand', 'name')
-      .sort(sort).skip(skip).limit(limit);
+    // --- FIX: Handle multiple brand IDs ---
+    // Express automatically parses `?brand=id1&brand=id2` into an array
+    if (req.query.brand) {
+      filter.brand = { $in: req.query.brand };
+    }
 
-    const total = await Product.countDocuments(filter);
+    // Price range
+    if (req.query.minPrice || req.query.maxPrice) {
+      filter.price = {};
+      if (req.query.minPrice) filter.price.$gte = parseFloat(req.query.minPrice);
+      if (req.query.maxPrice) filter.price.$lte = parseFloat(req.query.maxPrice);
+    }
+    
+    // --- NEW: Handle minimum rating ---
+    if (req.query.minRating) {
+      // Ensure the ratings average field exists and is greater than or equal to the value
+      filter['ratings.average'] = { $gte: parseFloat(req.query.minRating) };
+    }
+    
+    // --- NEW: Handle "On Sale" filter ---
+    if (req.query.onSale === 'true') {
+      // Find products with a discount greater than 0
+      filter.discount = { $gt: 0 };
+    }
 
-    res.json({
-      success: true,
-      count: products.length,
-      total,
-      page,
-      pages: Math.ceil(total / limit),
-      products
-    });
-  } catch (error) {
-    console.error('Get products error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+    if (req.query.featured === 'true') {
+      filter.isFeatured = true;
+    }
+
+    // --- SORT LOGIC ---
+    let sort = { createdAt: -1 }; // Default sort
+    
+    // --- FIX: Match sort keys from frontend ---
+    switch (req.query.sort) {
+      case 'price-low': sort = { price: 1 }; break;
+      case 'price-high': sort = { price: -1 }; break;
+      case 'name-asc': sort = { name: 1 }; break;
+      case 'name-desc': sort = { name: -1 }; break;
+      case 'newest': sort = { createdAt: -1 }; break;
+      case 'oldest': sort = { createdAt: 1 }; break;
+      case 'rating': sort = { 'ratings.average': -1 }; break;
+      case 'popular': sort = { 'ratings.count': -1 }; break; // Assuming popularity is based on review count
+    }
+
+    const products = await Product.find(filter)
+      .populate('supplier', 'businessName')
+      .populate('category', 'name')
+      .populate('brand', 'name')
+      .sort(sort)
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Product.countDocuments(filter);
+
+    // --- FIX: Use response keys the frontend expects ---
+    res.json({
+      success: true,
+      totalProducts: total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      products
+    });
+    
+  } catch (error) {
+    console.error('Get products error:', error);
+    res.status(500).json({ success: false, message: 'Server error while fetching products.' });
+  }
 };
 
 // ===================== GET SINGLE PRODUCT =====================
@@ -99,13 +131,26 @@ exports.createProduct = async (req, res) => {
         errors: errors.array(),
       });
     }
-    console.log('req',req.body);
-    const productData = { ...req.body };   // ✅ FIXED
 
-    // Clean up images field if frontend sends it as a string
-    if (typeof productData.images === "string") {
-      delete productData.images;
+    // Destructure inventory-related fields and product details from the request body
+    const {
+      currentStock,
+      minStockLevel,
+      ...productDetails
+    } = req.body;
+
+    // Check for duplicate SKU first to avoid unnecessary operations
+    const existing = await Product.findOne({
+      sku: productDetails.sku.toUpperCase(),
+    });
+    if (existing) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Product with this SKU already exists" });
     }
+
+    const productData = { ...productDetails };
+    productData.supplier = req.user._id;
 
     // Handle uploaded images
     if (req.files && req.files.length > 0) {
@@ -116,26 +161,33 @@ exports.createProduct = async (req, res) => {
       }));
     }
 
-    productData.supplier = req.user._id;
-
-    // Check for duplicate SKU
-    const existing = await Product.findOne({
-      sku: productData.sku.toUpperCase(),
-    });
-    if (existing) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Product with this SKU already exists" });
-    }
+    // --- Create Product and Inventory ---
+    // Note: For better data integrity, you should wrap these two database
+    // operations in a Mongoose transaction. This ensures that if the inventory
+    // creation fails, the product creation is rolled back.
 
     const product = await Product.create(productData);
+
+    // Prepare data for the new inventory document
+    const inventoryData = {
+      product: product._id,
+      currentStock: product.stock || 0,
+      minStockLevel: minStockLevel || 5,
+    };
+
+    const inventory = await Inventory.create(inventoryData);
+
     res.status(201).json({
       success: true,
-      message: "Product created successfully",
+      message: "Product and inventory created successfully",
       product,
+      inventory, // Include the new inventory record in the response
     });
+    
   } catch (error) {
     console.error("Create product error:", error);
+    // If an error occurs, especially between product and inventory creation,
+    // you might have an orphaned product without inventory. Transactions prevent this.
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -177,6 +229,12 @@ exports.updateProduct = async (req, res) => {
       updateData,
       { new: true, runValidators: true }
     ).populate('supplier', 'businessName firstName lastName');
+
+    const inventoryUpdated = await Inventory.findOneAndUpdate(
+      {product:updated._id},
+      {currentStock: updated.stock, minStockLevel:updated.minStockLevel },
+      { new: true}
+    );
 
     res.json({ success: true, message: 'Product updated successfully', product: updated });
   } catch (error) {

@@ -22,38 +22,53 @@ const calculateSupplierNet = (itemPrice, itemQuantity, commissionRate) => {
 
 // ---------------- Supplier CRUD -----------------
 
-// @desc    Get all suppliers
+// @desc    Get all suppliers
 exports.getSuppliers = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    const filter = { role: 'supplier' };
-    if (req.query.approved !== undefined) {
-      filter.isApproved = req.query.approved === 'true';
-    }
+    // 1. Initialize filter with the default role
+    const filter = { role: 'supplier' };
 
-    const suppliers = await User.find(filter)
-      .select('-password')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    // 2. CORRECTION: Handle 'isApproved' parameter
+    // The client sends 'isApproved=true' or 'isApproved=false'
+    if (req.query.isApproved !== undefined) {
+      // Convert the string 'true'/'false' to an actual boolean value
+      filter.isApproved = req.query.isApproved === 'true';
+    }
 
-    const total = await User.countDocuments(filter);
+    // 3. CORRECTION: Handle 'isActive' parameter
+    // The client sends 'isActive=true' or 'isActive=false'
+    if (req.query.isActive !== undefined) {
+      // Convert the string 'true'/'false' to an actual boolean value
+      filter.isActive = req.query.isActive === 'true';
+    }
 
-    res.json({
-      success: true,
-      count: suppliers.length,
-      total,
-      page,
-      pages: Math.ceil(total / limit),
-      suppliers
-    });
-  } catch (error) {
-    console.error('Get suppliers error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+    // The filter object now correctly combines all criteria, e.g.,
+    // { role: 'supplier', isApproved: false, isActive: true } for Pending
+
+    const suppliers = await User.find(filter)
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await User.countDocuments(filter);
+
+    res.json({
+      success: true,
+      count: suppliers.length,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+      suppliers
+    });
+  } catch (error) {
+    console.error('Get suppliers error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 };
 
 // @desc    Get single supplier + products
@@ -133,6 +148,8 @@ exports.getSupplierProducts = async (req, res) => {
 
     const products = await Product.find(filter)
       .populate('supplier', 'businessName firstName lastName')
+      .populate('category', 'name')
+      .populate('brand', 'name')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -390,4 +407,100 @@ exports.markNotificationRead = async (req, res) => {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
+};
+
+// @desc    Get overall payment analysis data (Admin only)
+// @route   GET /api/v1/suppliers/admin/payments/analysis
+exports.getPaymentAnalysis = async (req, res) => {
+    try {
+        // 1. Fetch site commission rate (needed to correctly calculate net totals)
+        const globalSettings = await Setting.getGlobalSettings();
+        const siteCommissionRate = globalSettings.siteCommissionRate || 0.10;
+
+        // 2. Aggregate Total Paid and Total Pending
+        const paymentsSummary = await Order.aggregate([
+            // Match only delivered items that belong to a supplier
+            { 
+                $match: { 
+                    shipmentStatus: 'delivered', 
+                    'items.supplier': { $exists: true } 
+                } 
+            },
+            // Unwind the items array to process each item individually
+            { $unwind: '$items' },
+            // Match again to filter only supplier items after unwinding
+            { $match: { 'items.supplier': { $exists: true } } },
+            {
+                $project: {
+                    _id: 0,
+                    paid: '$items.paidToSupplier',
+                    // Calculate the net amount the supplier earned for this item
+                    netAmount: {
+                        $multiply: [
+                            '$items.price', 
+                            '$items.quantity', 
+                            (1 - siteCommissionRate)
+                        ]
+                    },
+                    date: '$createdAt',
+                    orderNumber: '$orderNumber',
+                    supplier: '$items.supplier',
+                    itemTotal: { $multiply: ['$items.price', '$items.quantity'] }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalPaid: { 
+                        $sum: { $cond: ['$paid', '$netAmount', 0] } 
+                    },
+                    totalPending: { 
+                        $sum: { $cond: ['$paid', 0, '$netAmount'] } 
+                    },
+                    // Collect recent payout/pending data for the table/bar chart
+                    recentPayouts: {
+                        $push: {
+                            date: '$date',
+                            amount: '$netAmount',
+                            status: { $cond: ['$paid', 'Paid', 'Pending'] },
+                            supplierId: '$supplier',
+                            orderNumber: '$orderNumber'
+                        }
+                    }
+                }
+            },
+            { $project: { _id: 0, totalPaid: 1, totalPending: 1, recentPayouts: 1 } }
+        ]);
+
+        const summary = paymentsSummary[0] || { totalPaid: 0, totalPending: 0, recentPayouts: [] };
+        
+        // 3. Populate supplier names for the recentPayouts array
+        // Get unique supplier IDs
+        const supplierIds = [...new Set(summary.recentPayouts.map(p => p.supplierId))];
+        const suppliers = await User.find({ _id: { $in: supplierIds } }).select('businessName firstName lastName');
+        const supplierMap = suppliers.reduce((acc, s) => {
+            acc[s._id] = s.businessName || `${s.firstName} ${s.lastName}`;
+            return acc;
+        }, {});
+
+        // Add supplier name to the payouts
+        const recentPayoutsWithNames = summary.recentPayouts.map(p => ({
+            ...p,
+            supplierName: supplierMap[p.supplierId] || 'Unknown Supplier',
+            // Clean up numbers for final output
+            amount: parseFloat(p.amount.toFixed(2)) 
+        }));
+
+
+        res.json({
+            success: true,
+            totalPaid: parseFloat(summary.totalPaid.toFixed(2)),
+            totalPending: parseFloat(summary.totalPending.toFixed(2)),
+            recentPayouts: recentPayoutsWithNames
+        });
+
+    } catch (error) {
+        console.error('Get payment analysis error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
 };

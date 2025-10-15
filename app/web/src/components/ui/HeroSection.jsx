@@ -1,163 +1,95 @@
-import { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Play, ArrowRight, Star, Shield, Truck, Headphones } from 'lucide-react';
+import { motion } from 'framer-motion';
 
+// --- Main Hero Section Component ---
 const HeroSection = () => {
-  const [currentSlide, setCurrentSlide] = useState(0);
-
-  const slides = [
-    {
-      id: 1,
-      title: "Gear Up for Greatness",
-      subtitle: "Discover premium sports equipment, gear, and accessories for all your favorite sports. From professional athletes to weekend warriors, we've got you covered.",
-      image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-      cta: "Shop Now",
-      ctaLink: "/products",
-      secondaryCta: "Football Gear",
-      secondaryCtaLink: "/products?category=football"
-    },
-    {
-      id: 2,
-      title: "Elevate Your Performance",
-      subtitle: "Professional-grade equipment and gear designed to help you reach your peak performance. Quality that champions trust.",
-      image: "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-      cta: "Explore Collection",
-      ctaLink: "/products",
-      secondaryCta: "Basketball",
-      secondaryCtaLink: "/products?category=basketball"
-    },
-    {
-      id: 3,
-      title: "Train Like a Pro",
-      subtitle: "From gym essentials to outdoor adventures, find everything you need to stay active and achieve your fitness goals.",
-      image: "https://images.unsplash.com/photo-1624193757636-b829dfa06a1b?q=80&w=1248&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-      cta: "Start Training",
-      ctaLink: "/products",
-      secondaryCta: "Fitness",
-      secondaryCtaLink: "/products?category=fitness"
-    }
+  // Stats relevant to a cricket e-commerce store
+  const stats = [
+    { number: '50+', label: 'Pro-Grade Bats' },
+    { number: '10k+', label: 'Happy Customers' },
+    { number: '25+', label: 'Top Brands' },
+    { number: '24/7', label: 'Support' },
   ];
-
-  const features = [
-    { icon: Truck, text: "Free Shipping on Orders $50+" },
-    { icon: Shield, text: "30-Day Money Back Guarantee" },
-    { icon: Headphones, text: "24/7 Customer Support" },
-    { icon: Star, text: "Premium Quality Products" }
-  ];
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [slides.length]);
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % slides.length);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-  };
-
-  const goToSlide = (index) => {
-    setCurrentSlide(index);
-  };
 
   return (
-    <div className="relative">
-      {/* Hero Carousel */}
-      <div className="relative h-[70vh] min-h-[500px] overflow-hidden">
-        {slides.map((slide, index) => (
-          <div
-            key={slide.id}
-            className={`absolute inset-0 transition-opacity duration-1000 ${
-              index === currentSlide ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            <div
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-              style={{ backgroundImage: `url(${slide.image})` }}
-            >
-              <div className="absolute inset-0 bg-black bg-opacity-40"></div>
-            </div>
-            
-            <div className="relative z-10 h-full flex items-center">
-              <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="max-w-2xl">
-                  <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
-                    {slide.title}
-                  </h1>
-                  <p className="text-xl md:text-2xl text-gray-200 mb-8 leading-relaxed">
-                    {slide.subtitle}
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Link
-                      to={slide.ctaLink}
-                      className="inline-flex items-center justify-center px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                    >
-                      {slide.cta}
-                      <ArrowRight className="ml-2 w-5 h-5" />
-                    </Link>
-                    <Link
-                      to={slide.secondaryCtaLink}
-                      className="inline-flex items-center justify-center px-8 py-4 bg-transparent border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-gray-900 transition-all duration-300 transform hover:scale-105"
-                    >
-                      {slide.secondaryCta}
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
+    <section className="relative min-h-[80vh] sm:min-h-screen flex items-center justify-center overflow-hidden">
+      
+      {/* Background Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+        // A high-quality cricket image as a fallback
+        poster="https://images.unsplash.com/photo-1593341646782-e0b495cff86d?q=80&w=1974&auto=format&fit=crop"
+      >
+        {/* You can replace this with your own video file in the /public/assets folder */}
+        <source src="https://assets.mixkit.co/videos/preview/mixkit-cricket-player-hitting-the-ball-in-a-match-43821-large.mp4" type="video/mp4" />
+      </video>
+
+      {/* Dark Overlay for better text contrast */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/70" />
+
+      {/* Hero Content */}
+      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 text-center text-white">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: 'easeInOut' }}
+          className="space-y-6 sm:space-y-8"
+        >
+          {/* Top Badge */}
+          <div className="inline-flex items-center gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-white/10 text-sm sm:text-base backdrop-blur-md border border-white/20">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+            </span>
+            The Ultimate Cricket Gear Destination
           </div>
-        ))}
 
-        {/* Navigation Arrows */}
-        <button
-          onClick={prevSlide}
-          className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-full transition-all duration-300 backdrop-blur-sm"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-        <button
-          onClick={nextSlide}
-          className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-full transition-all duration-300 backdrop-blur-sm"
-        >
-          <ChevronRight className="w-6 h-6" />
-        </button>
+          {/* Main Headline */}
+          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold leading-tight drop-shadow-lg">
+            Dominate The{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
+              Crease
+            </span>
+          </h1>
 
-        {/* Slide Indicators */}
-        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2">
-          {slides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                index === currentSlide
-                  ? 'bg-white scale-125'
-                  : 'bg-white bg-opacity-50 hover:bg-opacity-75'
-              }`}
-            />
-          ))}
-        </div>
-      </div>
+          {/* Subheading */}
+          <p className="text-base sm:text-lg text-white/90 max-w-3xl mx-auto drop-shadow-md">
+            From professional-grade English Willow bats to official team jerseys, find everything you need to elevate your game and play like a champion.
+          </p>
 
-      {/* Features Bar */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {features.map((feature, index) => (
-              <div key={index} className="flex items-center space-x-3 text-center md:text-left">
-                <div className="flex-shrink-0">
-                  <feature.icon className="w-6 h-6 text-blue-600" />
-                </div>
-                <span className="text-sm font-medium text-gray-700">{feature.text}</span>
+          {/* Call-to-Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+            <Link
+              to="/products"
+              className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold text-base sm:text-lg hover:scale-105 transition-all duration-300 shadow-xl"
+            >
+              Shop All Gear
+            </Link>
+            <Link
+              to="/products?category=68f016b4ac0edc299ac3cb0b"
+              className="border border-white/40 text-white px-8 py-3 rounded-xl text-base sm:text-lg hover:bg-white/10 transition-all duration-300"
+            >
+              Browse Bats
+            </Link>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-8 pt-8 sm:pt-12">
+            {stats.map((stat, index) => (
+              <div key={index} className="text-center">
+                <div className="text-2xl sm:text-3xl font-bold">{stat.number}</div>
+                <div className="text-white/70 text-sm sm:text-base">{stat.label}</div>
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </section>
   );
 };
 

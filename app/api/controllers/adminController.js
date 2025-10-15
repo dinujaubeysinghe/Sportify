@@ -129,36 +129,55 @@ exports.updateUserStatus = async (req, res) => {
   }
 };
 
+// Correction for exports.updateSupplierStatus
+
 exports.updateSupplierStatus = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+        }
+
+        const { isApproved } = req.body;
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        // Update the user status
+        user.isApproved = isApproved;
+        // NOTE: You should also update user.isActive if you are rejecting (isApproved=false)
+        // This logic should match what you implemented in the getSuppliers controller.
+        // If isApproved is false, you probably want to set isActive to false too.
+        if (isApproved === false) {
+             user.isActive = false;
+        } else {
+             user.isActive = true;
+        }
+        
+        await user.save();
+        console.log('status: ', isApproved);
+
+        // --- CORRECTION APPLIED HERE ---
+        const fullName = `${user.firstName} ${user.lastName}`;
+        const approvalNotes = isApproved ? 'Your account is now fully active.' : 'Please review your application details and contact support if you need assistance.';
+
+        await sendEmail({
+            to: user.email,
+            subject: 'Your Supplier Account Status',
+            // Pass fullName, the boolean status, and the notes.
+            html: supplierApprovalTemplate(fullName, isApproved, approvalNotes)
+        });
+        // --------------------------------
+
+        res.json({
+            success: true,
+            message: `Supplier ${isApproved ? 'approved' : 'rejected'} successfully`,
+            user
+        });
+
+    } catch (error) {
+        console.error('Update supplier status error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
     }
-
-    const { isApproved } = req.body;
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-    user.isApproved = isApproved;
-    await user.save();
-
-    await sendEmail({
-      to: user.email,
-      subject: 'Verify your email',
-      html: supplierApprovalTemplate(user.firstName,' ',user.lastName , isApproved, notes = 'Best of Luck!')
-    });
-
-    res.json({
-      success: true,
-      message: `Supplier ${isApproved ? 'activated' : 'deactivated'} successfully`,
-      user
-    });
-
-  } catch (error) {
-    console.error('Update supplier status error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
 };
 
 exports.createStaff = async (req, res) => {
