@@ -1,276 +1,272 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { Trash2, Edit } from 'lucide-react';
+
+// --- Reusable UI Components (No changes needed) ---
+const FormInput = ({ label, name, value, onChange, error, ...props }) => (
+    <div>
+        <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+        <input
+            id={name}
+            name={name}
+            value={value}
+            onChange={onChange}
+            className={`w-full border rounded-lg p-2.5 transition-colors ${error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+            {...props}
+        />
+        {error && <p className="text-red-600 text-xs mt-1">{error}</p>}
+    </div>
+);
+
+const FormSelect = ({ label, name, value, onChange, error, children }) => (
+     <div>
+        <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+        <select
+            id={name}
+            name={name}
+            value={value}
+            onChange={onChange}
+            className={`w-full border rounded-lg p-2.5 transition-colors ${error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+        >
+            {children}
+        </select>
+         {error && <p className="text-red-600 text-xs mt-1">{error}</p>}
+    </div>
+);
+
+const ToggleSwitch = ({ name, checked, onChange }) => (
+    <label className="relative inline-flex items-center cursor-pointer">
+      <input type="checkbox" name={name} checked={checked} onChange={onChange} className="sr-only peer" />
+      <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+    </label>
+);
+
 
 export default function Discount() {
-  const [discounts, setDiscounts] = useState([]);
-  const [formData, setFormData] = useState({
-    code: "",
-    type: "percentage",
-    value: "",
-    startDate: "",
-    endDate: "",
-    isActive: true,
-  });
-  const [editingId, setEditingId] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  // Load discounts
-  const fetchDiscounts = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get("/discounts");
-      setDiscounts(res.data.discounts || []);
-    } catch (err) {
-      toast.error("Failed to load discounts");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDiscounts();
-  }, []);
-
-  // Handle form input
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  // Submit form (Create / Update)
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      if (editingId) {
-        await axios.put(`/discounts/${editingId}`, formData);
-        toast.success("Discount updated successfully");
-      } else {
-        await axios.post("/discounts", formData);
-        toast.success("Discount created successfully");
-      }
-      setFormData({
-        code: "",
-        type: "percentage",
-        value: "",
-        startDate: "",
-        endDate: "",
-        isActive: true,
-      });
-      setEditingId(null);
-      fetchDiscounts();
-    } catch (err) {
-      const msg = err.response?.data?.message || "Failed to save discount";
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Edit discount
-  const handleEdit = (discount) => {
-    setFormData({
-      code: discount.code,
-      type: discount.type,
-      value: discount.value,
-      startDate: discount.startDate?.split("T")[0],
-      endDate: discount.endDate?.split("T")[0],
-      isActive: discount.isActive,
+    const [discounts, setDiscounts] = useState([]);
+    const [formData, setFormData] = useState({
+        code: "", type: "percentage", value: "",
+        startDate: "", endDate: "", isActive: true,
     });
-    setEditingId(discount._id);
-  };
+    const [editingId, setEditingId] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({});
 
-  // Delete discount
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this discount?")) return;
-    try {
-      await axios.delete(`/discounts/${id}`);
-      toast.success("Discount deleted successfully");
-      fetchDiscounts();
-    } catch (err) {
-      toast.error("Failed to delete discount");
-    }
-  };
+    // --- ⬇️ CORRECTED CODE HERE ⬇️ ---
+    // This correctly gets today's date in the local timezone (YYYY-MM-DD)
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayString = `${year}-${month}-${day}`;
+    // --- ⬆️ END OF CORRECTED CODE ⬆️ ---
 
-  return (
-    <div className="p-6 min-h-screen bg-gray-50 text-gray-900">
-      <h1 className="text-2xl font-bold mb-6">Discount Management</h1>
+    const fetchDiscounts = async () => {
+        try {
+            setLoading(true);
+            const res = await axios.get("/discounts");
+            setDiscounts(res.data.discounts || []);
+        } catch (err) {
+            toast.error("Failed to load discounts");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-      {/* Form */}
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-xl shadow-md mb-8 max-w-2xl"
-      >
-        <h2 className="text-xl font-semibold mb-4">
-          {editingId ? "Edit Discount" : "Create Discount"}
-        </h2>
+    useEffect(() => { fetchDiscounts(); }, []);
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block font-medium mb-1">Code</label>
-            <input
-              type="text"
-              name="code"
-              value={formData.code}
-              onChange={handleChange}
-              required
-              className="w-full border border-gray-300 rounded-lg p-2"
-            />
-          </div>
+    const validateForm = (data) => {
+        const newErrors = {};
+        if (!data.code.trim()) newErrors.code = "Code is required.";
+        else if (/\s/.test(data.code)) newErrors.code = "Code cannot contain spaces.";
+        else if (data.code.trim().length < 3) newErrors.code = "Code must be at least 3 characters long.";
 
-          <div>
-            <label className="block font-medium mb-1">Type</label>
-            <select
-              name="type"
-              value={formData.type}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg p-2"
-            >
-              <option value="percentage">Percentage</option>
-              <option value="fixed">Fixed Amount</option>
-            </select>
-          </div>
+        if (!data.value) newErrors.value = "Value is required.";
+        else if (isNaN(data.value) || Number(data.value) <= 0) newErrors.value = "Value must be a positive number.";
+        else if (data.type === 'percentage' && Number(data.value) > 100) newErrors.value = "Percentage cannot exceed 100.";
 
-          <div>
-            <label className="block font-medium mb-1">Value</label>
-            <input
-              type="number"
-              name="value"
-              value={formData.value}
-              onChange={handleChange}
-              required
-              className="w-full border border-gray-300 rounded-lg p-2"
-            />
-          </div>
+        const todayValidation = new Date();
+        todayValidation.setHours(0, 0, 0, 0);
 
-          <div>
-            <label className="block font-medium mb-1">Active</label>
-            <input
-              type="checkbox"
-              name="isActive"
-              checked={formData.isActive}
-              onChange={handleChange}
-              className="w-5 h-5 accent-blue-600"
-            />
-          </div>
+        if (!data.startDate) newErrors.startDate = "Start date is required.";
+        else if (!editingId && new Date(data.startDate) < todayValidation) {
+            newErrors.startDate = "Start date cannot be in the past.";
+        }
+        
+        if (!data.endDate) newErrors.endDate = "End date is required.";
+        else if (data.startDate && new Date(data.endDate) < new Date(data.startDate)) {
+            newErrors.endDate = "End date cannot be before the start date.";
+        }
+        return newErrors;
+    };
 
-          <div>
-            <label className="block font-medium mb-1">Start Date</label>
-            <input
-              type="date"
-              name="startDate"
-              value={formData.startDate}
-              onChange={handleChange}
-              required
-              className="w-full border border-gray-300 rounded-lg p-2"
-            />
-          </div>
+    const clearForm = () => {
+        setFormData({
+            code: "", type: "percentage", value: "",
+            startDate: "", endDate: "", isActive: true,
+        });
+        setEditingId(null);
+        setErrors({});
+    };
 
-          <div>
-            <label className="block font-medium mb-1">End Date</label>
-            <input
-              type="date"
-              name="endDate"
-              value={formData.endDate}
-              onChange={handleChange}
-              required
-              className="w-full border border-gray-300 rounded-lg p-2"
-            />
-          </div>
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: type === "checkbox" ? checked : value,
+        }));
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: null }));
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const validationErrors = validateForm(formData);
+        setErrors(validationErrors);
+        
+        if (Object.keys(validationErrors).length > 0) {
+            toast.error("Please fix the validation errors.");
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const apiData = { ...formData, code: formData.code.toUpperCase().trim() };
+            if (editingId) {
+                await axios.put(`/api/discounts/${editingId}`, apiData);
+                toast.success("Discount updated successfully");
+            } else {
+                await axios.post("/api/discounts", apiData);
+                toast.success("Discount created successfully");
+            }
+            clearForm();
+            fetchDiscounts();
+        } catch (err) {
+            const msg = err.response?.data?.message || "Failed to save discount";
+            toast.error(msg);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    const handleEdit = (discount) => {
+        window.scrollTo(0, 0);
+        setFormData({
+            code: discount.code, type: discount.type, value: discount.value,
+            startDate: discount.startDate?.split("T")[0],
+            endDate: discount.endDate?.split("T")[0],
+            isActive: discount.isActive,
+        });
+        setEditingId(discount._id);
+        setErrors({});
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this discount?")) return;
+        try {
+            await axios.delete(`/api/discounts/${id}`);
+            toast.success("Discount deleted successfully");
+            fetchDiscounts();
+        } catch (err) {
+            toast.error("Failed to delete discount");
+        }
+    };
+    
+    return (
+        <div className="p-4 sm:p-6 min-h-screen bg-slate-50 text-slate-900">
+            <h1 className="text-3xl font-bold mb-6 text-slate-800">Discount Management</h1>
+
+            <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-lg mb-8 max-w-3xl">
+                <h2 className="text-xl font-semibold mb-6 border-b pb-4">
+                    {editingId ? "Edit Discount Code" : "Create New Discount Code"}
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormInput label="Discount Code" name="code" value={formData.code} onChange={handleChange} error={errors.code} required placeholder="e.g., SAVE20" />
+                    <FormInput label="Value" name="value" type="number" value={formData.value} onChange={handleChange} error={errors.value} required min="0" placeholder="e.g., 20 or 500" />
+                    <FormSelect label="Discount Type" name="type" value={formData.type} onChange={handleChange} error={errors.type}>
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="fixed">Fixed Amount (LKR)</option>
+                    </FormSelect>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <ToggleSwitch name="isActive" checked={formData.isActive} onChange={handleChange} />
+                    </div>
+                    
+                    <FormInput 
+                        label="Start Date" 
+                        name="startDate" 
+                        type="date" 
+                        value={formData.startDate} 
+                        onChange={handleChange} 
+                        error={errors.startDate} 
+                        required 
+                        min={!editingId ? todayString : undefined}
+                    />
+                    <FormInput 
+                        label="End Date" 
+                        name="endDate" 
+                        type="date" 
+                        value={formData.endDate} 
+                        onChange={handleChange} 
+                        error={errors.endDate} 
+                        required 
+                        min={formData.startDate || todayString}
+                    />
+                </div>
+
+                <div className="mt-6 pt-4 border-t">
+                    <button type="submit" disabled={loading} className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        {loading ? "Saving..." : editingId ? "Update Discount" : "Create Discount"}
+                    </button>
+                    {editingId && (
+                        <button type="button" onClick={clearForm} className="ml-4 text-sm text-gray-600 hover:underline">
+                            Cancel Edit
+                        </button>
+                    )}
+                </div>
+            </form>
+
+            <div className="bg-white p-6 rounded-xl shadow-lg">
+                <h2 className="text-xl font-semibold mb-4">All Discounts</h2>
+                {loading ? <p>Loading discounts...</p> : discounts.length === 0 ? (
+                    <p className="text-slate-600">No discounts have been created yet.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-gray-500">
+                            <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                                <tr>
+                                    <th scope="col" className="px-6 py-3">Code</th>
+                                    <th scope="col" className="px-6 py-3">Value</th>
+                                    <th scope="col" className="px-6 py-3">Dates</th>
+                                    <th scope="col" className="px-6 py-3">Status</th>
+                                    <th scope="col" className="px-6 py-3 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {discounts.map((d) => (
+                                    <tr key={d._id} className="bg-white border-b hover:bg-gray-50">
+                                        <td className="px-6 py-4 font-bold text-gray-900">{d.code}</td>
+                                        <td className="px-6 py-4">{d.type === 'percentage' ? `${d.value}%` : `LKR ${d.value}`}</td>
+                                        <td className="px-6 py-4">{d.startDate?.split("T")[0]} to {d.endDate?.split("T")[0]}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${d.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                {d.isActive ? "Active" : "Inactive"}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center space-x-4">
+                                            <button onClick={() => handleEdit(d)} className="font-medium text-blue-600 hover:text-blue-800 transition"><Edit size={18} /></button>
+                                            <button onClick={() => handleDelete(d._id)} className="font-medium text-red-600 hover:text-red-800 transition"><Trash2 size={18} /></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
         </div>
-
-        <div className="mt-4">
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-          >
-            {loading ? "Saving..." : editingId ? "Update" : "Create"}
-          </button>
-          {editingId && (
-            <button
-              type="button"
-              onClick={() => {
-                setEditingId(null);
-                setFormData({
-                  code: "",
-                  type: "percentage",
-                  value: "",
-                  startDate: "",
-                  endDate: "",
-                  isActive: true,
-                });
-              }}
-              className="ml-3 text-gray-600 hover:underline"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      </form>
-
-      {/* Table */}
-      <div className="bg-white p-6 rounded-xl shadow-md">
-        <h2 className="text-xl font-semibold mb-4">All Discounts</h2>
-
-        {loading ? (
-          <p>Loading...</p>
-        ) : discounts.length === 0 ? (
-          <p className="text-gray-600">No discounts found.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-100 text-left">
-                  <th className="p-3 border">Code</th>
-                  <th className="p-3 border">Type</th>
-                  <th className="p-3 border">Value</th>
-                  <th className="p-3 border">Start Date</th>
-                  <th className="p-3 border">End Date</th>
-                  <th className="p-3 border">Active</th>
-                  <th className="p-3 border text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {discounts.map((d) => (
-                  <tr key={d._id} className="hover:bg-gray-50">
-                    <td className="p-3 border font-semibold">{d.code}</td>
-                    <td className="p-3 border capitalize">{d.type}</td>
-                    <td className="p-3 border">{d.value}</td>
-                    <td className="p-3 border">{d.startDate?.split("T")[0]}</td>
-                    <td className="p-3 border">{d.endDate?.split("T")[0]}</td>
-                    <td className="p-3 border">
-                      {d.isActive ? (
-                        <span className="text-green-600 font-medium">Yes</span>
-                      ) : (
-                        <span className="text-red-600 font-medium">No</span>
-                      )}
-                    </td>
-                    <td className="p-3 border text-center space-x-2">
-                      <button
-                        onClick={() => handleEdit(d)}
-                        className="text-blue-600 hover:underline"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(d._id)}
-                        className="text-red-600 hover:underline"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+    );
 }

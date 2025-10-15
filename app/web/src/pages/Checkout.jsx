@@ -35,7 +35,7 @@ const Checkout = () => {
   // --- State & Calculations ---
   const [currentStep, setCurrentStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
-
+  const [errors, setErrors] = useState({});
 
   // Form data initialization
   const [shippingInfo, setShippingInfo] = useState({
@@ -114,47 +114,92 @@ const Checkout = () => {
     };
 
   const handleShippingChange = (field, value) => {
-    setShippingInfo(prev => ({ ...prev, [field]: value }));
+      setShippingInfo(prev => ({ ...prev, [field]: value }));
+      // Clear the error for this field when the user types
+      if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
   };
 
   const handlePaymentChange = (field, value) => {
-    setPaymentInfo(prev => ({ ...prev, [field]: value }));
+      let processedValue = value;
+      
+      // Auto-format expiry date to MM/YY
+      if (field === 'expiryDate') {
+          const cleaned = value.replace(/\D/g, ''); // Remove non-digits
+          if (cleaned.length > 2) {
+              processedValue = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}`;
+          } else {
+              processedValue = cleaned;
+          }
+      }
+
+      setPaymentInfo(prev => ({ ...prev, [field]: processedValue }));
+      // Clear the error for this field when the user types
+      if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
   };
 
   const handleBillingChange = (field, value) => {
     setBillingInfo(prev => ({ ...prev, [field]: value }));
   };
 
-  const validateStep = (step) => {
-    // Validation logic (unchanged)
-    switch (step) {
-      case 1:
-        return shippingInfo.firstName && shippingInfo.lastName && 
-              shippingInfo.email && shippingInfo.phone && 
-              shippingInfo.address && shippingInfo.city && 
-              shippingInfo.state && shippingInfo.zipCode;
-      case 2:
-        return paymentInfo.cardNumber && paymentInfo.expiryDate && 
-              paymentInfo.cvv && paymentInfo.nameOnCard;
-      case 3:
-        return true;
-      default:
-        return false;
-    }
+  const validateStep = () => {
+      const newErrors = {};
+      
+      // --- Step 1: Shipping Validation ---
+      if (currentStep === 1) {
+          if (!shippingInfo.firstName.trim()) newErrors.firstName = 'First name is required.';
+          if (!shippingInfo.lastName.trim()) newErrors.lastName = 'Last name is required.';
+          if (!shippingInfo.email.trim()) newErrors.email = 'Email is required.';
+          else if (!/\S+@\S+\.\S+/.test(shippingInfo.email)) newErrors.email = 'Email is invalid.';
+          if (!shippingInfo.phone.trim()) newErrors.phone = 'Phone number is required.';
+          else if (shippingInfo.phone.length < 10) newErrors.phone = 'Phone number must be 10 digits.';
+          if (!shippingInfo.address.trim()) newErrors.address = 'Address is required.';
+          if (!shippingInfo.city.trim()) newErrors.city = 'City is required.';
+          if (!shippingInfo.state.trim()) newErrors.state = 'State is required.';
+          if (!shippingInfo.zipCode.trim()) newErrors.zipCode = 'ZIP code is required.';
+      }
+      
+      // --- Step 2: Payment Validation ---
+      if (currentStep === 2) {
+          if (paymentInfo.cardNumber.length !== 16) newErrors.cardNumber = 'Card number must be 16 digits.';
+          if (paymentInfo.cvv.length < 3) newErrors.cvv = 'CVV must be 3 or 4 digits.';
+          if (!paymentInfo.nameOnCard.trim()) newErrors.nameOnCard = 'Name on card is required.';
+
+          // Expiry Date Validation Logic
+          if (!paymentInfo.expiryDate) {
+              newErrors.expiryDate = 'Expiry date is required.';
+          } else if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(paymentInfo.expiryDate)) {
+              newErrors.expiryDate = 'Invalid format. Use MM/YY.';
+          } else {
+              const [month, year] = paymentInfo.expiryDate.split('/');
+              const expiryMonth = parseInt(month, 10);
+              const expiryYear = 2000 + parseInt(year, 10);
+
+              const today = new Date();
+              const currentMonth = today.getMonth() + 1; // getMonth is 0-indexed
+              const currentYear = today.getFullYear();
+
+              if (expiryYear < currentYear || (expiryYear === currentYear && expiryMonth < currentMonth)) {
+                  newErrors.expiryDate = 'This card has expired.';
+              }
+          }
+      }
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0; // Returns true if no errors
   };
 
-  const nextStep = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep(prev => prev + 1);
-    } else {
-      toast.error('Please fill in all required fields');
-    }
-  };
+    const nextStep = () => {
+        if (validateStep()) {
+            setCurrentStep(prev => prev + 1);
+        } else {
+            toast.error('Please fix the errors before continuing.');
+        }
+    };
 
-  const prevStep = () => {
-    setCurrentStep(prev => prev - 1);
-  };
-
+    const prevStep = () => {
+        setErrors({}); // Clear errors when going back a step
+        setCurrentStep(prev => prev - 1);
+    };
   // --- Core Logic: Place Order (SECURELY) ---
   const handlePlaceOrder = async () => {
     if (!validateStep(currentStep)) {
@@ -312,19 +357,67 @@ const Checkout = () => {
                   </div>
                 )}
 
-                {/* Step 2: Payment Information (unchanged) */}
+                {/* Step 2: Payment Information */}
                 {currentStep === 2 && (
                   <div className="p-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center"><CreditCard className="w-5 h-5 mr-2 text-blue-600" />Payment Information</h2>
                     <div className="space-y-4">
-                      {/* ... All payment input fields ... */}
-                      <div><label className="block text-sm font-medium text-gray-700 mb-2">Card Number *</label><input type="text" value={paymentInfo.cardNumber} onChange={(e) => handlePaymentChange('cardNumber', e.target.value.replace(/\D/g, ""))} maxLength={16} placeholder="1234 5678 9012 3456" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required/></div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div><label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date *</label><input type="text" value={paymentInfo.expiryDate} onChange={(e) => handlePaymentChange('expiryDate', e.target.value.replace(/\D/g, ""))} maxLength={4} placeholder="MM/YY" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required/></div>
-                        <div><label className="block text-sm font-medium text-gray-700 mb-2">CVV *</label><input type="text" value={paymentInfo.cvv} onChange={(e) => handlePaymentChange('cvv', e.target.value.replace(/\D/g, ""))} maxLength={4} placeholder="123" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required/></div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Card Number *</label>
+                        <input 
+                          type="text" 
+                          value={paymentInfo.cardNumber} 
+                          onChange={(e) => handlePaymentChange('cardNumber', e.target.value.replace(/\D/g, ""))} 
+                          maxLength={16} 
+                          placeholder="1234 5678 9012 3456" 
+                          className={`w-full px-3 py-2 border rounded-lg ${errors.cardNumber ? 'border-red-500' : 'border-gray-300'}`} 
+                          required
+                        />
+                        {errors.cardNumber && <p className="text-xs text-red-500 mt-1">{errors.cardNumber}</p>}
                       </div>
-                      <div><label className="block text-sm font-medium text-gray-700 mb-2">Name on Card *</label><input type="text" value={paymentInfo.nameOnCard} onChange={(e) => handlePaymentChange('nameOnCard', e.target.value)}maxLength={20} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required/></div>
-                      <div className="flex items-center"><input type="checkbox" id="saveCard" checked={paymentInfo.saveCard} onChange={(e) => handlePaymentChange('saveCard', e.target.checked)} className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"/><label htmlFor="saveCard" className="ml-2 text-sm text-gray-700">Save card for future purchases</label></div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date *</label>
+                          <input 
+                            type="text" 
+                            value={paymentInfo.expiryDate} 
+                            onChange={(e) => handlePaymentChange('expiryDate', e.target.value)} 
+                            placeholder="MM/YY" 
+                            className={`w-full px-3 py-2 border rounded-lg ${errors.expiryDate ? 'border-red-500' : 'border-gray-300'}`} 
+                            required
+                          />
+                          {errors.expiryDate && <p className="text-xs text-red-500 mt-1">{errors.expiryDate}</p>}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">CVV *</label>
+                          <input 
+                            type="text" 
+                            value={paymentInfo.cvv} 
+                            onChange={(e) => handlePaymentChange('cvv', e.target.value.replace(/\D/g, ""))} 
+                            maxLength={4} 
+                            placeholder="123" 
+                            className={`w-full px-3 py-2 border rounded-lg ${errors.cvv ? 'border-red-500' : 'border-gray-300'}`} 
+                            required
+                          />
+                          {errors.cvv && <p className="text-xs text-red-500 mt-1">{errors.cvv}</p>}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Name on Card *</label>
+                        <input 
+                          type="text" 
+                          value={paymentInfo.nameOnCard} 
+                          onChange={(e) => handlePaymentChange('nameOnCard', e.target.value)} 
+                          maxLength={50} 
+                          className={`w-full px-3 py-2 border rounded-lg ${errors.nameOnCard ? 'border-red-500' : 'border-gray-300'}`} 
+                          required
+                        />
+                        {errors.nameOnCard && <p className="text-xs text-red-500 mt-1">{errors.nameOnCard}</p>}
+                      </div>
+                      <div className="flex items-center">
+                        <input type="checkbox" id="saveCard" checked={paymentInfo.saveCard} onChange={(e) => handlePaymentChange('saveCard', e.target.checked)} className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"/>
+                        <label htmlFor="saveCard" className="ml-2 text-sm text-gray-700">Save card for future purchases</label>
+                      </div>
                     </div>
                   </div>
                 )}
