@@ -69,23 +69,38 @@ const SupplierProducts = () => {
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
     const [selectedBrand, setSelectedBrand] = useState('');
-
     const { data: categories } = useQuery('supplier-categories', async () => (await axios.get('/categories')).data.categories || []);
     const { data: brands } = useQuery('supplier-brands', async () => (await axios.get('/brands')).data.brands || []);
 
-    const { data: productsData, isLoading, isError } = useQuery(
-        ['supplier-products', user?._id, searchQuery, selectedCategory, selectedBrand],
-        async () => {
-            const params = new URLSearchParams({ search: searchQuery, page: 1 });
-            if (selectedCategory) params.append('category', selectedCategory);
-            if (selectedBrand) params.append('brand', selectedBrand);
-            const res = await axios.get(`/suppliers/${user._id}/products?${params.toString()}`);
-            return res.data;
-        },
-        { enabled: !!user }
-    );
+    useEffect(() => {
+        const timerId = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 300); // Wait for 300ms after user stops typing to trigger the search
+
+        // Cleanup function to clear the timer if the user types again
+        return () => {
+            clearTimeout(timerId);
+        };
+    }, [searchQuery]);
+
+const { data: productsData, isLoading, isError } = useQuery(
+        // ✨ CHANGED: Use the debounced search query in the query key
+        ['supplier-products', user?._id, debouncedSearchQuery, selectedCategory, selectedBrand],
+        async () => {
+            // ✨ CHANGED: Use the debounced search query for the API call
+            const params = new URLSearchParams({ search: debouncedSearchQuery, page: 1 });
+            if (selectedCategory) params.append('category', selectedCategory);
+            if (selectedBrand) params.append('brand', selectedBrand);
+            const res = await axios.get(`/suppliers/${user._id}/products?${params.toString()}`);
+            return res.data;
+        },
+        { enabled: !!user }
+    );
+
+    
 
     const processFormData = (data) => {
         const formData = new FormData();
