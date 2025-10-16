@@ -41,6 +41,8 @@ import AdminSuppliers from './pages/admin/Suppliers';
 import AdminDiscount from './pages/admin/Discount';
 import AdminSettings from './pages/admin/Settings';
 import AdminPayments from './pages/admin/Payments';
+import StaffManagement from './pages/admin/StaffManagement';
+import ReportGeneration from './pages/admin/ReportGeneration';
 
 // Supplier Pages
 import SupplierDashboard from './pages/supplier/Dashboard';
@@ -194,7 +196,27 @@ function App() {
                       </AdminRoute>
                     } />
                     
-                    {/* Supplier Routes */}
+                    {/* Staff Management Routes */}
+                    <Route path="/admin/staff" element={
+                      <AdminRoute>
+                        <StaffManagement />
+                      </AdminRoute>
+                    } />
+                    <Route path="/admin/staff/add" element={
+                      <AdminRoute>
+                        <StaffManagement />
+                      </AdminRoute>
+                    } />
+                    <Route path="/admin/departments" element={
+                      <AdminRoute>
+                        <StaffManagement />
+                      </AdminRoute>
+                    } />
+                    <Route path="/admin/reports" element={
+                      <AdminRoute>
+                        <ReportGeneration />
+                      </AdminRoute>
+                    } />
                     <Route path="/supplier" element={
                       <SupplierRoute>
                         <SupplierDashboard />

@@ -206,6 +206,7 @@ exports.addMessage = async (req, res) => {
   try {
     const { message } = req.body;
 
+    // Validate input
     if (!message || !message.trim()) {
       return res.status(400).json({ 
         success: false, 
@@ -213,14 +214,28 @@ exports.addMessage = async (req, res) => {
       });
     }
 
+    // Validate user
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not authenticated' 
+      });
+    }
+
+    // Find ticket
     const ticket = await SupportTicket.findById(req.params.id);
     if (!ticket) {
       return res.status(404).json({ success: false, message: 'Support ticket not found' });
     }
 
+    // Create sender name safely
+    const senderName = req.user.firstName && req.user.lastName 
+      ? `${req.user.firstName} ${req.user.lastName}`
+      : req.user.email || 'Staff Member';
+    
     // Add message
     ticket.messages.push({
-      sender: req.user.firstName + ' ' + req.user.lastName,
+      sender: senderName,
       message: message.trim(),
       isCustomer: false
     });
@@ -235,6 +250,12 @@ exports.addMessage = async (req, res) => {
     });
   } catch (error) {
     console.error('Add message error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      userId: req.user?.id,
+      ticketId: req.params.id
+    });
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
