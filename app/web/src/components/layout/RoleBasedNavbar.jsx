@@ -1,30 +1,33 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Menu, 
-  X, 
-  Search, 
-  ShoppingCart, 
-  User, 
-  Heart,
-  ChevronDown,
-  Bell,
-  Settings,
-  LogOut,
-  LayoutDashboard,
-  Package,
-  Users,
-  BarChart3,
-  Truck,
-  MessageCircle,
-  Shield,
-  TrendingUp,
-  Tag,
-  UserCog,
-  Cog,
-  Currency,
-  DollarSign,
-  CreditCard
+  Menu, 
+  X, 
+  Search, 
+  ShoppingCart, 
+  User, 
+  Heart,
+  ChevronDown,
+  Bell,
+  Settings,
+  LogOut,
+  LayoutDashboard,
+  Package,
+  Users,
+  BarChart3,
+  Truck,
+  MessageCircle,
+  Shield,
+  TrendingUp,
+  Tag,
+  UserCog,
+  Cog,
+  Currency,
+  DollarSign,
+  CreditCard,
+  Building2,
+  UserPlus,
+  IdCard
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
@@ -103,28 +106,40 @@ const RoleBasedNavbar = () => {
     }
 
     switch (user.role) {
-      case 'admin':
-        return [
-          { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, type: 'link' },
-          
-          // DROPDOWN 1: INVENTORY
-          { name: 'Inventory', icon: BarChart3, type: 'dropdown', subItems: [
-              { name: 'Inventory List', href: '/admin/inventory', icon: BarChart3 },
-              { name: 'Categories', href: '/admin/categories', icon: Package },
-              { name: 'Brands', href: '/admin/brands', icon: Tag },
-          ]},
-          
-          // DROPDOWN 2: FINANCE
-          { name: 'Finance', icon: DollarSign, type: 'dropdown', subItems: [
-              { name: 'Payments', href: '/admin/payments', icon: CreditCard },
-              { name: 'Discounts', href: '/admin/discount', icon: Tag},
-          ]},
-          
-          { name: 'Orders', href: '/admin/orders', icon: ShoppingCart, type: 'link' },
-          { name: 'Users', href: '/admin/users', icon: Users, type: 'link' },
-          { name: 'Suppliers', href: '/admin/suppliers', icon: UserCog, type: 'link'},
-          { name: 'Settings', href: '/admin/settings', icon: Cog, type: 'link'}
-        ];
+      case 'admin':
+        return [
+          { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, type: 'link' },
+          
+          // DROPDOWN 1: INVENTORY
+          { name: 'Inventory', icon: BarChart3, type: 'dropdown', subItems: [
+              { name: 'Inventory List', href: '/admin/inventory', icon: BarChart3 },
+              { name: 'Categories', href: '/admin/categories', icon: Package },
+              { name: 'Brands', href: '/admin/brands', icon: Tag },
+            ]},
+          
+          // DROPDOWN 2: FINANCE
+          { name: 'Finance', icon: DollarSign, type: 'dropdown', subItems: [
+              { name: 'Payments', href: '/admin/payments', icon: CreditCard },
+              { name: 'Discounts', href: '/admin/discount', icon: Tag},
+            ]},
+          
+          // DROPDOWN 3: STAFF MANAGEMENT (NEW)
+          { name: 'Staff Management', icon: Users, type: 'dropdown', subItems: [
+              { name: 'Staff List', href: '/admin/staff', icon: Users },
+              { name: 'Add Staff', href: '/admin/staff/add', icon: UserPlus },
+              { name: 'Departments', href: '/admin/departments', icon: Building2 },
+            ]},
+          
+          // DROPDOWN 4: REPORTS
+          { name: 'Reports', icon: BarChart3, type: 'dropdown', subItems: [
+              { name: 'Generate Reports', href: '/admin/reports', icon: BarChart3 },
+            ]},
+          
+          { name: 'Orders', href: '/admin/orders', icon: ShoppingCart, type: 'link' },
+          { name: 'Users', href: '/admin/users', icon: Users, type: 'link' },
+          { name: 'Suppliers', href: '/admin/suppliers', icon: UserCog, type: 'link'},
+          { name: 'Settings', href: '/admin/settings', icon: Cog, type: 'link'}
+        ];
       case 'supplier':
         return [
           { name: 'Dashboard', href: '/supplier', icon: LayoutDashboard },

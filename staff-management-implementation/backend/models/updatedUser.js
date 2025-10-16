@@ -130,15 +130,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['read', 'write', 'delete', 'admin'],
     default: 'read'
-  }],
-  position: {
-    type: String,
-    trim: true
-  },
-  salary: {
-    type: Number,
-    min: 0
-  }
+  }]
 }, {
   timestamps: true
 });
