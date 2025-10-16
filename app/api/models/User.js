@@ -109,10 +109,13 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: function() {
       return this.role === 'staff';
-    }
+    },
+    unique: true,
+    sparse: true // Allows null values but ensures uniqueness when present
   },
   department: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department',
     required: function() {
       return this.role === 'staff';
     }
@@ -122,10 +125,30 @@ const userSchema = new mongoose.Schema({
     required: function() {
       return this.role === 'staff';
     }
+  },
+  permissions: [{
+    type: String,
+    enum: ['read', 'write', 'delete', 'admin'],
+    default: 'read'
+  }],
+  position: {
+    type: String,
+    trim: true
+  },
+  salary: {
+    type: Number,
+    min: 0
   }
 }, {
   timestamps: true
 });
+
+// Indexes for better performance
+userSchema.index({ email: 1 });
+userSchema.index({ role: 1 });
+userSchema.index({ employeeId: 1 });
+userSchema.index({ department: 1 });
+userSchema.index({ isActive: 1 });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

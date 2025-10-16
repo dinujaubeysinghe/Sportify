@@ -135,10 +135,10 @@ export default function Discount() {
             setLoading(true);
             const apiData = { ...formData, code: formData.code.toUpperCase().trim() };
             if (editingId) {
-                await axios.put(`/api/discounts/${editingId}`, apiData);
+                await axios.put(`/discounts/${editingId}`, apiData);
                 toast.success("Discount updated successfully");
             } else {
-                await axios.post("/api/discounts", apiData);
+                await axios.post("/discounts", apiData);
                 toast.success("Discount created successfully");
             }
             clearForm();
