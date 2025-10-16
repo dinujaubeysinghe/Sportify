@@ -128,11 +128,7 @@ const RoleBasedNavbar = () => {
               { name: 'Staff List', href: '/admin/staff', icon: Users },
               { name: 'Add Staff', href: '/admin/staff/add', icon: UserPlus },
               { name: 'Departments', href: '/admin/departments', icon: Building2 },
-            ]},
-          
-          // DROPDOWN 4: REPORTS
-          { name: 'Reports', icon: BarChart3, type: 'dropdown', subItems: [
-              { name: 'Generate Reports', href: '/admin/reports', icon: BarChart3 },
+              // { name: 'Generate Reports', href: '/admin/reports', icon: BarChart3 },
             ]},
           
           { name: 'Orders', href: '/admin/orders', icon: ShoppingCart, type: 'link' },
@@ -238,7 +234,7 @@ const RoleBasedNavbar = () => {
                             </button>
                             
                             {/* Dropdown Content */}
-                            {(activeDropdown === item.name || isActive) && (
+                            {(activeDropdown === item.name) && (
                                 <div className="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-100">
                                     {item.subItems.map((subItem) => (
                                         <Link
