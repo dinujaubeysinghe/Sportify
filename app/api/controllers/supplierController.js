@@ -131,43 +131,66 @@ exports.updateApproval = async (req, res) => {
 
 // @desc    Get supplier products
 exports.getSupplierProducts = async (req, res) => {
-  try {
-    const supplier = await User.findOne({ _id: req.params.id, role: 'supplier' });
-    if (!supplier) return res.status(404).json({ success: false, message: 'Supplier not found' });
+  try {
+    const supplier = await User.findOne({ _id: req.params.id, role: 'supplier' });
+    if (!supplier) return res.status(404).json({ success: false, message: 'Supplier not found' });
 
-    if (req.user.role === 'supplier' && supplier._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
-    }
+    if (req.user.role === 'supplier' && supplier._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    const filter = { supplier: req.params.id };
-    if (req.query.isActive !== undefined) filter.isActive = req.query.isActive === 'true';
+    // Destructure all possible query parameters
+    const { search, category, brand, isActive } = req.query; // ✨ NEW
 
-    const products = await Product.find(filter)
-      .populate('supplier', 'businessName firstName lastName')
+    const filter = { supplier: req.params.id };
+    
+    // ✨ NEW: Add conditions for search, category, and brand
+    if (search) {
+      // Use $or to search in both name and SKU fields, case-insensitively
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { sku: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (category) {
+      filter.category = category;
+    }
+
+    if (brand) {
+      filter.brand = brand;
+    }
+
+    if (isActive !== undefined) {
+      filter.isActive = isActive === 'true';
+    }
+
+    const products = await Product.find(filter)
+      .populate('supplier', 'businessName firstName lastName')
       .populate('category', 'name')
       .populate('brand', 'name')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    const total = await Product.countDocuments(filter);
+    const total = await Product.countDocuments(filter);
 
-    res.json({
-      success: true,
-      count: products.length,
-      total,
-      page,
-      pages: Math.ceil(total / limit),
-      products
-    });
-  } catch (error) {
-    console.error('Get supplier products error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+    res.json({
+      success: true,
+      count: products.length,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+      products
+    });
+  } catch (error) {
+    console.error('Get supplier products error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 };
 
 // ---------------- Supplier Stats -----------------
