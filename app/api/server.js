@@ -9,7 +9,7 @@ require('./cron/lowStockChecker');
 // Load env variables
 require('dotenv').config();
 
-// Initialize express
+
 const app = express();
 
 // Connect DB
